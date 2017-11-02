@@ -186,7 +186,7 @@ def process_chains(ag_search, ab_h_chain, ab_l_chain, max_cdr_length):
 
 
 def process_dataset(csv_file):
-    print("in process dataset", file=f)
+    print("Preprocessing", file=f)
     num_in_contact = 0
     num_residues = 0
 
@@ -208,25 +208,20 @@ def process_dataset(csv_file):
     cdrs = torch.cat(all_cdrs)
     lbls = torch.cat(all_lbls)
     masks = torch.cat(all_masks)
-    return cdrs, lbls, cdr_mask, num_in_contact/num_residues
-
-def get_data(csv_file):
-    print("Preprocessing", file=f)
-    cdrs, in_contact, masks, pos_class_weight = process_dataset(csv_file)
     print("cdrs: ", cdrs, file=f)
-    print("in contact: ", in_contact, file=f)
+    print("lbls: ", lbls, file=f)
     print("masks: ", masks, file=f)
     print("max_cdr_len: ", MAX_CDR_LENGTH, file=f)
-    print("pos_class_weight: ", pos_class_weight, file=f)
+    print("pos_class_weight: ", num_in_contact/num_residues, file=f)
     return {
-        "cdrs": cdrs,
-        "lbls" : in_contact,
-        "masks": masks,
+        "cdrs" : cdrs,
+        "lbls" : lbls,
+        "masks" : cdr_mask,
         "max_cdr_len": MAX_CDR_LENGTH,
-        "pos_class_weight": pos_class_weight
+        "pos_class_weight" : num_in_contact/num_residues
     }
 
 f = open('preprocessing.txt','w')
 f_sizes = open('preprocessing_sizes.txt', 'w')
-get_data(data_frame)
+process_dataset(data_frame)
 
