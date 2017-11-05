@@ -33,7 +33,7 @@ def load_chains(csv_file):
     print("in load_chains")
     i=0
     for _, column in csv_file.iterrows():
-        if(i<1):
+        if(i==1):
             pdb_name = column['pdb']
             ab_h_chain = column['Hchain']
             ab_l_chain = column['Lchain']
@@ -43,7 +43,7 @@ def load_chains(csv_file):
             print(ab_h_chain, file=f)
             print(ab_l_chain, file=f)
             print(antigen_chain, file=f)
-            get_pdb_structure(PDBS_FORMAT.format(pdb_name))
+            get_pdb_structure(PDBS_FORMAT.format(pdb_name), ab_h_chain, ab_l_chain, antigen_chain)
             structure = get_pdb_structure_from_file(PDBS_FORMAT.format(pdb_name))  # replace this
 
 
@@ -72,21 +72,25 @@ def load_chains(csv_file):
                 print("coord", ag_atoms[0].get_coord(), file=f)
                 print("vector", ag_atoms[0].get_vector(), file=f)
 
-
             ag_search = NeighborSearch(ag_atoms)  # replace this
 
+            print("old ag atoms")
+            for atom in ag_atoms:
+                print(atom.name, atom.serial_number)
+
             ag_chain_struct = None if '|' in antigen_chain else model[antigen_chain]
-            i=i+1
             print("ab_h_chain", model[ab_h_chain], file=f)
             print("ab_l_chain", model[ab_l_chain], file=f)
 
             yield ag_search, model[ab_h_chain], model[ab_l_chain], ag_chain_struct, pdb_name
+        i = i + 1
 
 def extract_cdrs(chain, cdr_names):
     print("in extract_cdrs", file=f)
     print("chain", chain, file=f)
     print("cdr_names", cdr_names, file=f)
     cdrs = {name: [] for name in cdr_names}
+    print("cdrs", cdrs)
     for res in chain.get_unpacked_list():
         # Does this residue belong to any of the CDRs?
         for cdr_name in cdrs:
@@ -178,6 +182,7 @@ def process_chains(ag_search, ab_h_chain, ab_l_chain, max_cdr_length):
             print("cdr_name", cdr_name, file=f)
             print("res", res, file=f)
         contact[cdr_name] =  [residue_in_contact_with(res, ag_search) for res in cdr_chain]
+        print("contact[cdr_name]", contact[cdr_name])
         num_residues += len(contact[cdr_name])
         num_in_contact += sum(contact[cdr_name])
 
