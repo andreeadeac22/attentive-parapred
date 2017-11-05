@@ -2,6 +2,7 @@ from __future__ import print_function, division
 import os
 import torch
 import pandas as pd
+from parsing import *
 from Bio.PDB import *
 from Bio.PDB.Model import Model
 from Bio.PDB.Structure import Structure
@@ -29,9 +30,10 @@ def get_pdb_structure_from_file(pdb_file_name):
 
 def load_chains(csv_file):
     print("in load_chains", file=f)
+    print("in load_chains")
     i=0
     for _, column in csv_file.iterrows():
-        if(i<35):
+        if(i<1):
             pdb_name = column['pdb']
             ab_h_chain = column['Hchain']
             ab_l_chain = column['Lchain']
@@ -41,24 +43,49 @@ def load_chains(csv_file):
             print(ab_h_chain, file=f)
             print(ab_l_chain, file=f)
             print(antigen_chain, file=f)
-            structure = get_pdb_structure_from_file(PDBS_FORMAT.format(pdb_name))
-            model = structure[0]
-            print(model[column['Hchain']], file=f)
+            get_pdb_structure(PDBS_FORMAT.format(pdb_name))
+            structure = get_pdb_structure_from_file(PDBS_FORMAT.format(pdb_name))  # replace this
 
+
+            model = structure[0]
+
+            print("before model ag", file=f)
             if "|" in antigen_chain:
                 c1, c2 = antigen_chain.split(" | ")
+                print(model[c1], file=f)
+                print(model[c2], file=f)
                 ag_atoms = Selection.unfold_entities(model[c1], 'A') + Selection.unfold_entities(model[c2], 'A')
+                print(ag_atoms, file=f)
+                print("First atom", file=f)
+                print(ag_atoms[0], file=f)
             else:
+                print(model[antigen_chain], 'A', file=f)
                 ag_atoms = Selection.unfold_entities(model[antigen_chain], 'A')
+                print(ag_atoms, file=f)
+                print("First atom", file=f)
+                print(ag_atoms[0], file=f)
+                print("parent", ag_atoms[0].get_parent(), file=f)
+                print("serial number", ag_atoms[0].get_serial_number(), file=f)
+                print("id", ag_atoms[0].get_id(), file=f)
+                print("full_id", ag_atoms[0].get_full_id(), file=f)
+                print("name", ag_atoms[0].get_name(), file=f)
+                print("coord", ag_atoms[0].get_coord(), file=f)
+                print("vector", ag_atoms[0].get_vector(), file=f)
 
-            ag_search = NeighborSearch(ag_atoms)
+
+            ag_search = NeighborSearch(ag_atoms)  # replace this
 
             ag_chain_struct = None if '|' in antigen_chain else model[antigen_chain]
-        i=i+1
-        yield ag_search, model[ab_h_chain], model[ab_l_chain], ag_chain_struct, pdb_name
+            i=i+1
+            print("ab_h_chain", model[ab_h_chain], file=f)
+            print("ab_l_chain", model[ab_l_chain], file=f)
+
+            yield ag_search, model[ab_h_chain], model[ab_l_chain], ag_chain_struct, pdb_name
 
 def extract_cdrs(chain, cdr_names):
     print("in extract_cdrs", file=f)
+    print("chain", chain, file=f)
+    print("cdr_names", cdr_names, file=f)
     cdrs = {name: [] for name in cdr_names}
     for res in chain.get_unpacked_list():
         # Does this residue belong to any of the CDRs?
@@ -119,12 +146,12 @@ def to_categorical(y, num_classes):
 
 
 def seq_to_one_hot(res_seq_one):
-    print("res_seq_one: ", res_seq_one)
+    print("res_seq_one: ", res_seq_one, file=f)
     ints = one_to_number(res_seq_one)
-    print("ints: ", ints)
+    print("ints: ", ints, file=f)
     if(len(ints) > 0):
         new_ints = torch.LongTensor(ints)
-        print("new_ints: ", new_ints)
+        print("new_ints: ", new_ints, file=f)
         feats = torch.Tensor(aa_features()[new_ints])
         onehot = to_categorical(ints, num_classes=len(aa_s))
         print("after concatenation: ", torch.cat((onehot, feats), 1), file=f)
@@ -143,8 +170,13 @@ def process_chains(ag_search, ab_h_chain, ab_l_chain, max_cdr_length):
     num_residues = 0
     num_in_contact = 0
     contact = {}
+    print("before cdrs.items")
+    print("cdrs.items", cdrs.items())
 
     for cdr_name, cdr_chain in cdrs.items():
+        for res in cdr_chain:
+            print("cdr_name", cdr_name, file=f)
+            print("res", res, file=f)
         contact[cdr_name] =  [residue_in_contact_with(res, ag_search) for res in cdr_chain]
         num_residues += len(contact[cdr_name])
         num_in_contact += sum(contact[cdr_name])
@@ -172,10 +204,10 @@ def process_chains(ag_search, ab_h_chain, ab_l_chain, max_cdr_length):
         cont_mats.append(cont_mat_pad)
 
         cdr_mask = torch.zeros(max_cdr_length, 1)
-        print("len: ", len(cdr_chain))
+        print("len: ", len(cdr_chain), file=f)
         if len(cdr_chain) > 0:
             cdr_mask[:len(cdr_chain), 0] = 1
-        print("cdr_mask", cdr_mask)
+        print("cdr_mask", cdr_mask, file=f)
         cdr_masks.append(cdr_mask)
 
     cdrs = torch.stack(cdr_mats)
@@ -196,6 +228,7 @@ def process_dataset(csv_file):
 
     for ag_search, ab_h_chain, ab_l_chain, _, pdb in load_chains(csv_file):
         print("Processing PDB ", pdb, file=f)
+        print("Processing PDB ", pdb)
         cdrs, lbls, cdr_mask, (numincontact, numresidues) = process_chains(ag_search, ab_h_chain, ab_l_chain, max_cdr_length = MAX_CDR_LENGTH)
 
         num_in_contact += numincontact
