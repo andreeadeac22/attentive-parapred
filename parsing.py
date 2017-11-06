@@ -8,7 +8,7 @@ cdr_names = ["H1", "H2", "H3", "L1", "L2", "L3"]
 
 class Entity(object):
     def __init__(self, name, id):
-        self._name_ = name
+        self.name = name
         self._id_ = id
         self.child_list = []
 
@@ -22,7 +22,7 @@ class Entity(object):
         return self._id_
 
     def get_name(self):
-        return self._name_
+        return self.name
 
     def add_child(self, child):
         if (not (self.has_child(child.get_id()))):
@@ -41,10 +41,13 @@ class Residue(Entity):
         Entity.__init__(self, name, id)
 
     def __repr__(self):
-        resname = self.get_name()
-        resseq = self.get_id()
-        full_id = (resname, resseq)
+        name = self.get_name()
+        seq = self.get_id()
+        full_id = (name, seq)
         return "<Residue %s resseq=%s>" % full_id
+
+    def get_unpacked_list(self):
+        return self.child_list
 
 
 class Atom(object):
@@ -59,6 +62,10 @@ class Atom(object):
         self.x_coord = float(line[30:38])
         self.y_coord = float(line[38:46])
         self.z_coord = float(line[46:54])
+        self.coord= [self.x_coord, self.y_coord, self.z_coord]
+
+    def get_coord(self):
+        return [self.x_coord, self.y_coord, self.z_coord]
 
     def __repr__(self):
         full_id = (self.get_id(), self.serial_num)
@@ -133,5 +140,6 @@ def get_pdb_structure(pdb_file_name, ab_h_chain, ab_l_chain, ag_chain):
             else:
                 if chain_id == ag_chain:
                     model.add_agatom(atom)
+    return cdrs, model.agatoms
     print("new cdrs.items", cdrs.items())
     print("ag_chain", model.agatoms)

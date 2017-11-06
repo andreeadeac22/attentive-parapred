@@ -43,71 +43,22 @@ def load_chains(csv_file):
             print(ab_h_chain, file=f)
             print(ab_l_chain, file=f)
             print(antigen_chain, file=f)
-            get_pdb_structure(PDBS_FORMAT.format(pdb_name), ab_h_chain, ab_l_chain, antigen_chain)
-            structure = get_pdb_structure_from_file(PDBS_FORMAT.format(pdb_name))  # replace this
+            cdrs, ag_atoms = get_pdb_structure(PDBS_FORMAT.format(pdb_name), ab_h_chain, ab_l_chain, antigen_chain)
 
-
-            model = structure[0]
-
-            print("before model ag", file=f)
-            if "|" in antigen_chain:
-                c1, c2 = antigen_chain.split(" | ")
-                print(model[c1], file=f)
-                print(model[c2], file=f)
-                ag_atoms = Selection.unfold_entities(model[c1], 'A') + Selection.unfold_entities(model[c2], 'A')
-                print(ag_atoms, file=f)
-                print("First atom", file=f)
-                print(ag_atoms[0], file=f)
-            else:
-                print(model[antigen_chain], 'A', file=f)
-                ag_atoms = Selection.unfold_entities(model[antigen_chain], 'A')
-                print(ag_atoms, file=f)
-                print("First atom", file=f)
-                print(ag_atoms[0], file=f)
-                print("parent", ag_atoms[0].get_parent(), file=f)
-                print("serial number", ag_atoms[0].get_serial_number(), file=f)
-                print("id", ag_atoms[0].get_id(), file=f)
-                print("full_id", ag_atoms[0].get_full_id(), file=f)
-                print("name", ag_atoms[0].get_name(), file=f)
-                print("coord", ag_atoms[0].get_coord(), file=f)
-                print("vector", ag_atoms[0].get_vector(), file=f)
+            print("ag_atoms", ag_atoms, file=f)
 
             ag_search = NeighborSearch(ag_atoms)  # replace this
 
-            print("old ag atoms")
-            for atom in ag_atoms:
-                print(atom.name, atom.serial_number)
-
-            ag_chain_struct = None if '|' in antigen_chain else model[antigen_chain]
-            print("ab_h_chain", model[ab_h_chain], file=f)
-            print("ab_l_chain", model[ab_l_chain], file=f)
-
-            yield ag_search, model[ab_h_chain], model[ab_l_chain], ag_chain_struct, pdb_name
+            yield ag_search, cdrs, pdb_name
         i = i + 1
 
-def extract_cdrs(chain, cdr_names):
-    print("in extract_cdrs", file=f)
-    print("chain", chain, file=f)
-    print("cdr_names", cdr_names, file=f)
-    cdrs = {name: [] for name in cdr_names}
-    print("cdrs", cdrs)
-    for res in chain.get_unpacked_list():
-        # Does this residue belong to any of the CDRs?
-        for cdr_name in cdrs:
-            cdr_low, cdr_hi = chothia_cdr_def[cdr_name]
-            cdr_range = range(-NUM_EXTRA_RESIDUES + cdr_low, cdr_hi +
-                              NUM_EXTRA_RESIDUES + 1)
-            if res.id[1] in cdr_range:
-                cdrs[cdr_name].append(res)
-    return cdrs
-
 def residue_in_contact_with(res, c_search, dist=CONTACT_DISTANCE):
-    return any(len(c_search.search(a.coord, dist)) > 0
+    return any(len(c_search.search(a.coord, dist)) > 0   # search(self, centre, radius) - for each atom in res (antibody)
                for a in res.get_unpacked_list())
 
 def residue_seq_to_one(seq):
-    three_to_one = lambda r: Polypeptide.three_to_one(r.resname)\
-        if r.resname in Polypeptide.standard_aa_names else 'U'
+    three_to_one = lambda r: Polypeptide.three_to_one(r.name)\
+        if r.name in Polypeptide.standard_aa_names else 'U'
     return list(map(three_to_one, seq))
 
 def one_to_number(res_str):
@@ -165,11 +116,8 @@ def seq_to_one_hot(res_seq_one):
     else:
         return torch.zeros(1, NUM_FEATURES)
 
-def process_chains(ag_search, ab_h_chain, ab_l_chain, max_cdr_length):
+def process_chains(ag_search, cdrs, max_cdr_length):
     print("in process chains", file=f)
-    cdrs = {}
-    cdrs.update(extract_cdrs(ab_h_chain, ["H1", "H2", "H3"]))
-    cdrs.update(extract_cdrs(ab_l_chain, ["L1", "L2", "L3"]))
 
     num_residues = 0
     num_in_contact = 0
@@ -181,10 +129,10 @@ def process_chains(ag_search, ab_h_chain, ab_l_chain, max_cdr_length):
         for res in cdr_chain:
             print("cdr_name", cdr_name, file=f)
             print("res", res, file=f)
-        contact[cdr_name] =  [residue_in_contact_with(res, ag_search) for res in cdr_chain]
-        print("contact[cdr_name]", contact[cdr_name])
-        num_residues += len(contact[cdr_name])
-        num_in_contact += sum(contact[cdr_name])
+        # contact[cdr_name] =  [residue_in_contact_with(res, ag_search) for res in cdr_chain]
+        # print("contact[cdr_name]", contact[cdr_name])
+        # num_residues += len(contact[cdr_name])
+        # num_in_contact += sum(contact[cdr_name])
 
     if num_in_contact < 5:
         print("Antibody has very few contact residues: ", num_in_contact, file=f)
@@ -200,6 +148,9 @@ def process_chains(ag_search, ab_h_chain, ab_l_chain, max_cdr_length):
         cdr_mat_pad[:cdr_mat.shape[0], :] = cdr_mat
         cdr_mats.append(cdr_mat_pad)
 
+        print("cdr_chain", cdr_chain, file=f)
+
+        """""
         if len(contact[cdr_name]) > 0:
             cont_mat = torch.FloatTensor(contact[cdr_name])
             cont_mat_pad = torch.zeros(max_cdr_length, 1)
@@ -214,12 +165,13 @@ def process_chains(ag_search, ab_h_chain, ab_l_chain, max_cdr_length):
             cdr_mask[:len(cdr_chain), 0] = 1
         print("cdr_mask", cdr_mask, file=f)
         cdr_masks.append(cdr_mask)
+    """
 
     cdrs = torch.stack(cdr_mats)
-    lbls = torch.stack(cont_mats)
-    masks = torch.stack(cdr_masks)
+    #lbls = torch.stack(cont_mats)
+    #masks = torch.stack(cdr_masks)
 
-    return cdrs, lbls, masks, (num_in_contact, num_residues)
+    return cdrs, cdrs, cdrs, (num_in_contact, 1)
 
 
 def process_dataset(csv_file):
@@ -231,10 +183,10 @@ def process_dataset(csv_file):
     all_lbls = []
     all_masks = []
 
-    for ag_search, ab_h_chain, ab_l_chain, _, pdb in load_chains(csv_file):
+    for ag_search, cdrs, pdb in load_chains(csv_file):
         print("Processing PDB ", pdb, file=f)
         print("Processing PDB ", pdb)
-        cdrs, lbls, cdr_mask, (numincontact, numresidues) = process_chains(ag_search, ab_h_chain, ab_l_chain, max_cdr_length = MAX_CDR_LENGTH)
+        cdrs, lbls, cdr_mask, (numincontact, numresidues) = process_chains(ag_search, cdrs, max_cdr_length = MAX_CDR_LENGTH)
 
         num_in_contact += numincontact
         num_residues += numresidues
