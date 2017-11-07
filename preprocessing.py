@@ -3,9 +3,8 @@ import os
 import torch
 import pandas as pd
 from parsing import *
-from Bio.PDB import *
-from Bio.PDB.Model import Model
-from Bio.PDB.Structure import Structure
+from search import *
+from Bio.PDB import Polypeptide
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -25,15 +24,12 @@ CONTACT_DISTANCE = 4.5 # Contact distance between atoms in Angstroms
 chothia_cdr_def = { "L1" : (24, 34), "L2" : (50, 56), "L3" : (89, 97),
                     "H1" : (26, 32), "H2" : (52, 56), "H3" : (95, 102) }
 
-def get_pdb_structure_from_file(pdb_file_name):
-    return PDBParser().get_structure("", pdb_file_name)
-
 def load_chains(csv_file):
     print("in load_chains", file=f)
     print("in load_chains")
     i=0
     for _, column in csv_file.iterrows():
-        if(i==1):
+        if (column['pdb'] == '3skj'):
             pdb_name = column['pdb']
             ab_h_chain = column['Hchain']
             ab_l_chain = column['Lchain']
@@ -45,15 +41,13 @@ def load_chains(csv_file):
             print(antigen_chain, file=f)
             cdrs, ag_atoms = get_pdb_structure(PDBS_FORMAT.format(pdb_name), ab_h_chain, ab_l_chain, antigen_chain)
 
-            print("ag_atoms", ag_atoms, file=f)
-
-            ag_search = NeighborSearch(ag_atoms)  # replace this
+            ag_search = NeighbourSearch(ag_atoms)  # replace this
 
             yield ag_search, cdrs, pdb_name
         i = i + 1
 
 def residue_in_contact_with(res, c_search, dist=CONTACT_DISTANCE):
-    return any(len(c_search.search(a.coord, dist)) > 0   # search(self, centre, radius) - for each atom in res (antibody)
+    return any(c_search.search(a) > 0   # search(self, centre, radius) - for each atom in res (antibody)
                for a in res.get_unpacked_list())
 
 def residue_seq_to_one(seq):
@@ -101,38 +95,29 @@ def to_categorical(y, num_classes):
 
 
 def seq_to_one_hot(res_seq_one):
-    print("res_seq_one: ", res_seq_one, file=f)
     ints = one_to_number(res_seq_one)
-    print("ints: ", ints, file=f)
     if(len(ints) > 0):
         new_ints = torch.LongTensor(ints)
-        print("new_ints: ", new_ints, file=f)
         feats = torch.Tensor(aa_features()[new_ints])
         onehot = to_categorical(ints, num_classes=len(aa_s))
-        print("after concatenation: ", torch.cat((onehot, feats), 1), file=f)
         concatenated = torch.cat((onehot, feats), 1)
-        print("shape: ", concatenated.shape, file = f_sizes)
         return torch.cat((onehot, feats), 1)
     else:
         return torch.zeros(1, NUM_FEATURES)
 
 def process_chains(ag_search, cdrs, max_cdr_length):
-    print("in process chains", file=f)
-
     num_residues = 0
     num_in_contact = 0
     contact = {}
-    print("before cdrs.items")
-    print("cdrs.items", cdrs.items())
 
     for cdr_name, cdr_chain in cdrs.items():
-        for res in cdr_chain:
-            print("cdr_name", cdr_name, file=f)
-            print("res", res, file=f)
-        # contact[cdr_name] =  [residue_in_contact_with(res, ag_search) for res in cdr_chain]
-        # print("contact[cdr_name]", contact[cdr_name])
-        # num_residues += len(contact[cdr_name])
-        # num_in_contact += sum(contact[cdr_name])
+        contact[cdr_name] =  [residue_in_contact_with(res, ag_search) for res in cdr_chain]
+        print("cdr_name", cdr_name, file=f)
+        print("contact[cdr_name]", contact[cdr_name], file=f)
+        print("num_residues", len(contact[cdr_name]), file=f)
+        print("num_in_contact", sum(contact[cdr_name]), file=f)
+        num_residues += len(contact[cdr_name])
+        num_in_contact += sum(contact[cdr_name])
 
     if num_in_contact < 5:
         print("Antibody has very few contact residues: ", num_in_contact, file=f)
@@ -143,14 +128,13 @@ def process_chains(ag_search, cdrs, max_cdr_length):
     for cdr_name in ["H1", "H2", "H3", "L1", "L2", "L3"]:
         # Converting residues to amino acid sequences
         cdr_chain = residue_seq_to_one(cdrs[cdr_name])
+        if cdr_name == "H3":
+            print("cdr_chain", cdr_chain, file=f)
         cdr_mat = seq_to_one_hot(cdr_chain)
         cdr_mat_pad = torch.zeros(max_cdr_length, NUM_FEATURES)
         cdr_mat_pad[:cdr_mat.shape[0], :] = cdr_mat
         cdr_mats.append(cdr_mat_pad)
 
-        print("cdr_chain", cdr_chain, file=f)
-
-        """""
         if len(contact[cdr_name]) > 0:
             cont_mat = torch.FloatTensor(contact[cdr_name])
             cont_mat_pad = torch.zeros(max_cdr_length, 1)
@@ -160,18 +144,15 @@ def process_chains(ag_search, cdrs, max_cdr_length):
         cont_mats.append(cont_mat_pad)
 
         cdr_mask = torch.zeros(max_cdr_length, 1)
-        print("len: ", len(cdr_chain), file=f)
         if len(cdr_chain) > 0:
             cdr_mask[:len(cdr_chain), 0] = 1
-        print("cdr_mask", cdr_mask, file=f)
         cdr_masks.append(cdr_mask)
-    """
 
     cdrs = torch.stack(cdr_mats)
-    #lbls = torch.stack(cont_mats)
-    #masks = torch.stack(cdr_masks)
+    lbls = torch.stack(cont_mats)
+    masks = torch.stack(cdr_masks)
 
-    return cdrs, cdrs, cdrs, (num_in_contact, 1)
+    return cdrs, lbls, masks, (num_residues, num_in_contact)
 
 
 def process_dataset(csv_file):
@@ -186,7 +167,7 @@ def process_dataset(csv_file):
     for ag_search, cdrs, pdb in load_chains(csv_file):
         print("Processing PDB ", pdb, file=f)
         print("Processing PDB ", pdb)
-        cdrs, lbls, cdr_mask, (numincontact, numresidues) = process_chains(ag_search, cdrs, max_cdr_length = MAX_CDR_LENGTH)
+        cdrs, lbls, cdr_mask, (numresidues, numincontact) = process_chains(ag_search, cdrs, max_cdr_length = MAX_CDR_LENGTH)
 
         num_in_contact += numincontact
         num_residues += numresidues
@@ -202,13 +183,13 @@ def process_dataset(csv_file):
     print("lbls: ", lbls, file=f)
     print("masks: ", masks, file=f)
     print("max_cdr_len: ", MAX_CDR_LENGTH, file=f)
-    print("pos_class_weight: ", num_in_contact/num_residues, file=f)
+    print("pos_class_weight: ", num_residues/num_in_contact, file=f)
     return {
         "cdrs" : cdrs,
         "lbls" : lbls,
         "masks" : cdr_mask,
         "max_cdr_len": MAX_CDR_LENGTH,
-        "pos_class_weight" : num_in_contact/num_residues
+        "pos_class_weight" : num_residues/num_in_contact
     }
 
 f = open('preprocessing.txt','w')

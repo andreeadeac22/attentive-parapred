@@ -58,6 +58,7 @@ class Atom(object):
         self.name = line[12:16]
         self.res_name = line[17:20]
         self.chain_id = line[21]
+        #self.full_seq_num = line[22:27]
         self.res_seq_num = int(line[22:26])
         self.x_coord = float(line[30:38])
         self.y_coord = float(line[38:46])
@@ -125,6 +126,10 @@ def get_pdb_structure(pdb_file_name, ab_h_chain, ab_l_chain, ag_chain):
                 cdr_low, cdr_hi = chothia_cdr_def[cdr_name]
                 cdr_range = range(-NUM_EXTRA_RESIDUES + cdr_low, cdr_hi +
                                   NUM_EXTRA_RESIDUES + 1)
+                if chain_id == ab_h_chain and cdr_name.startswith('H') and res_seq_num == 100:
+                    print("seq_num", atom.res_seq_num)
+                    print("full_seq_num", atom.full_seq_num)
+
                 if ((chain_id == ab_h_chain and cdr_name.startswith('H'))\
                     or (chain_id == ab_l_chain and cdr_name.startswith('L'))) \
                                 and res_seq_num in cdr_range:
