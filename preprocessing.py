@@ -29,7 +29,7 @@ def load_chains(csv_file):
     print("in load_chains")
     i=0
     for _, column in csv_file.iterrows():
-        if (column['pdb'] == '3skj'):
+        if (i<35):
             pdb_name = column['pdb']
             ab_h_chain = column['Hchain']
             ab_l_chain = column['Lchain']
@@ -112,10 +112,10 @@ def process_chains(ag_search, cdrs, max_cdr_length):
 
     for cdr_name, cdr_chain in cdrs.items():
         contact[cdr_name] =  [residue_in_contact_with(res, ag_search) for res in cdr_chain]
-        print("cdr_name", cdr_name, file=f)
-        print("contact[cdr_name]", contact[cdr_name], file=f)
-        print("num_residues", len(contact[cdr_name]), file=f)
-        print("num_in_contact", sum(contact[cdr_name]), file=f)
+        # print("cdr_name", cdr_name, file=f)
+        # print("contact[cdr_name]", contact[cdr_name], file=f)
+        # print("num_residues", len(contact[cdr_name]), file=f)
+        # print("num_in_contact", sum(contact[cdr_name]), file=f)
         num_residues += len(contact[cdr_name])
         num_in_contact += sum(contact[cdr_name])
 
@@ -128,8 +128,6 @@ def process_chains(ag_search, cdrs, max_cdr_length):
     for cdr_name in ["H1", "H2", "H3", "L1", "L2", "L3"]:
         # Converting residues to amino acid sequences
         cdr_chain = residue_seq_to_one(cdrs[cdr_name])
-        if cdr_name == "H3":
-            print("cdr_chain", cdr_chain, file=f)
         cdr_mat = seq_to_one_hot(cdr_chain)
         cdr_mat_pad = torch.zeros(max_cdr_length, NUM_FEATURES)
         cdr_mat_pad[:cdr_mat.shape[0], :] = cdr_mat
@@ -175,6 +173,9 @@ def process_dataset(csv_file):
         all_cdrs.append(cdrs)
         all_lbls.append(lbls)
         all_masks.append(cdr_mask)
+
+    print("num_residues", num_residues, file=f)
+    print("num_in_contact", num_in_contact, file=f)
 
     cdrs = torch.cat(all_cdrs)
     lbls = torch.cat(all_lbls)

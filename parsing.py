@@ -37,13 +37,13 @@ class Chain(Entity):
         Entity.__init__(self, name, id)
 
 class Residue(Entity):
-    def __init__(self, name, id):
+    def __init__(self, name, id, full_seq_num):
         Entity.__init__(self, name, id)
+        self.full_seq_num = full_seq_num
 
     def __repr__(self):
-        name = self.get_name()
         seq = self.get_id()
-        full_id = (name, seq)
+        full_id = (self.full_seq_num, seq)
         return "<Residue %s resseq=%s>" % full_id
 
     def get_unpacked_list(self):
@@ -58,7 +58,7 @@ class Atom(object):
         self.name = line[12:16]
         self.res_name = line[17:20]
         self.chain_id = line[21]
-        #self.full_seq_num = line[22:27]
+        self.full_seq_num = line[22:27]
         self.res_seq_num = int(line[22:26])
         self.x_coord = float(line[30:38])
         self.y_coord = float(line[38:46])
@@ -79,6 +79,8 @@ class Model(object):
     def __init__(self):
         self.cdrs = {name: [] for name in cdr_names}
         self.agatoms = []
+        self.ab_h_chain = []
+        self.ab_l_chain = []
 
     def get_cdrs(self):
         return self.cdrs
@@ -90,9 +92,9 @@ class Model(object):
         if ag_atom not in self.agatoms:
             self.agatoms.append(ag_atom)
 
-    def cdr_list_has_res(self, res_list, res_name, res_seq_num):
+    def cdr_list_has_res(self, res_list, res_name, res_full_seq_num):
         for res in res_list:
-            if res.get_id() == res_seq_num and res.get_name() == res_name:
+            if res.full_seq_num == res_full_seq_num and res.get_name() == res_name:
                 return res
         return None
 
@@ -113,6 +115,7 @@ class Model(object):
 def get_pdb_structure(pdb_file_name, ab_h_chain, ab_l_chain, ag_chain):
     in_file = open(pdb_file_name, 'r')
     model = Model()
+
     cdrs = model.get_cdrs()
     print("new cdrs", cdrs)
     print(ab_h_chain, ab_l_chain, ag_chain)
@@ -121,21 +124,19 @@ def get_pdb_structure(pdb_file_name, ab_h_chain, ab_l_chain, ag_chain):
             atom = Atom(line)
             res_name = atom.res_name
             res_seq_num = atom.res_seq_num
+            full_seq_num = atom.full_seq_num
             chain_id = atom.chain_id
+
             for cdr_name in cdrs:
                 cdr_low, cdr_hi = chothia_cdr_def[cdr_name]
                 cdr_range = range(-NUM_EXTRA_RESIDUES + cdr_low, cdr_hi +
                                   NUM_EXTRA_RESIDUES + 1)
-                if chain_id == ab_h_chain and cdr_name.startswith('H') and res_seq_num == 100:
-                    print("seq_num", atom.res_seq_num)
-                    print("full_seq_num", atom.full_seq_num)
-
                 if ((chain_id == ab_h_chain and cdr_name.startswith('H'))\
                     or (chain_id == ab_l_chain and cdr_name.startswith('L'))) \
                                 and res_seq_num in cdr_range:
-                    residue = model.cdr_list_has_res(cdrs[cdr_name], res_name, res_seq_num)
+                    residue = model.cdr_list_has_res(cdrs[cdr_name], res_name, full_seq_num)
                     if residue == None:
-                        residue = Residue(res_name, res_seq_num)
+                        residue = Residue(res_name, res_seq_num, full_seq_num)
                     residue.add_child(atom)
                     model.add_residue(residue, cdr_name)
             if " | " in ag_chain:
