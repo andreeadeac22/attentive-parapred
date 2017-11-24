@@ -29,7 +29,8 @@ def load_chains(csv_file):
     print("in load_chains")
     i=0
     for _, column in csv_file.iterrows():
-        if (i<35):
+        if (i<150):
+        #if (column['pdb'] == "4xtr"):
             pdb_name = column['pdb']
             ab_h_chain = column['Hchain']
             ab_l_chain = column['Lchain']
