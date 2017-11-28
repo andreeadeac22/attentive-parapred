@@ -164,8 +164,8 @@ def get_pdb_structure(pdb_file_name, ab_h_chain, ab_l_chain, ag_chain):
     model = Model()
 
     cdrs = model.get_cdrs()
-    print("new cdrs", cdrs)
-    print(ab_h_chain, ab_l_chain, ag_chain)
+    #print("new cdrs", cdrs)
+    #print(ab_h_chain, ab_l_chain, ag_chain)
     for line in in_file:
         if line.startswith('ATOM') or line.startswith('HETATM'):
             atom = Atom(line)

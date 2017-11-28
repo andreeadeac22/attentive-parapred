@@ -1,15 +1,17 @@
 from __future__ import print_function, division
 import os
+import pickle
 import torch
 import pandas as pd
 from parsing import *
 from search import *
 from Bio.PDB import Polypeptide
+from os.path import isfile
 
 import warnings
 warnings.filterwarnings("ignore")
 
-MAX_CDR_LENGTH = 31
+MAX_CDR_LENGTH = 32
 DATA_DIRECTORY = 'data/'
 PDBS_FORMAT = 'data/{}.pdb'
 CSV_NAME = 'sabdab_27_jun_95_90.csv'
@@ -29,22 +31,22 @@ def load_chains(csv_file):
     print("in load_chains")
     i=0
     for _, column in csv_file.iterrows():
-        if (i<150):
+        #if (i<150):
         #if (column['pdb'] == "4xtr"):
-            pdb_name = column['pdb']
-            ab_h_chain = column['Hchain']
-            ab_l_chain = column['Lchain']
-            antigen_chain = column['antigen_chain']
-            print(pdb_name)
-            print(pdb_name, file=f)
-            print(ab_h_chain, file=f)
-            print(ab_l_chain, file=f)
-            print(antigen_chain, file=f)
-            cdrs, ag_atoms = get_pdb_structure(PDBS_FORMAT.format(pdb_name), ab_h_chain, ab_l_chain, antigen_chain)
+        pdb_name = column['pdb']
+        ab_h_chain = column['Hchain']
+        ab_l_chain = column['Lchain']
+        antigen_chain = column['antigen_chain']
+        print(pdb_name)
+        print(pdb_name, file=f)
+        print(ab_h_chain, file=f)
+        print(ab_l_chain, file=f)
+        print(antigen_chain, file=f)
+        cdrs, ag_atoms = get_pdb_structure(PDBS_FORMAT.format(pdb_name), ab_h_chain, ab_l_chain, antigen_chain)
 
-            ag_search = NeighbourSearch(ag_atoms)  # replace this
+        ag_search = NeighbourSearch(ag_atoms)  # replace this
 
-            yield ag_search, cdrs, pdb_name
+        yield ag_search, cdrs, pdb_name
         i = i + 1
 
 def residue_in_contact_with(res, c_search, dist=CONTACT_DISTANCE):
@@ -166,14 +168,16 @@ def process_dataset(csv_file):
     for ag_search, cdrs, pdb in load_chains(csv_file):
         print("Processing PDB ", pdb, file=f)
         print("Processing PDB ", pdb)
-        cdrs, lbls, cdr_mask, (numresidues, numincontact) = process_chains(ag_search, cdrs, max_cdr_length = MAX_CDR_LENGTH)
+        cdrs, lbls, masks, (numresidues, numincontact) = process_chains(ag_search, cdrs, max_cdr_length = MAX_CDR_LENGTH)
+
+        print("masks, masks")
 
         num_in_contact += numincontact
         num_residues += numresidues
 
         all_cdrs.append(cdrs)
         all_lbls.append(lbls)
-        all_masks.append(cdr_mask)
+        all_masks.append(masks)
 
     print("num_residues", num_residues, file=f)
     print("num_in_contact", num_in_contact, file=f)
@@ -189,12 +193,23 @@ def process_dataset(csv_file):
     return {
         "cdrs" : cdrs,
         "lbls" : lbls,
-        "masks" : cdr_mask,
+        "masks" : masks,
         "max_cdr_len": MAX_CDR_LENGTH,
         "pos_class_weight" : num_residues/num_in_contact
     }
 
-f = open('preprocessing.txt','w')
-f_sizes = open('preprocessing_sizes.txt', 'w')
-process_dataset(data_frame)
+def open_dataset(summary_file, dataset_cache="processed-dataset.p"):
+
+    if isfile(dataset_cache):
+        print("Precomputed dataset found, loading...")
+        with open(dataset_cache, "rb") as f:
+            dataset = pickle.load(f)
+    else:
+        print("Computing and storing the dataset...")
+        dataset = process_dataset(summary_file)
+        with open(dataset_cache, "wb") as f:
+            pickle.dump(dataset, f)
+
+    return dataset
+
 
