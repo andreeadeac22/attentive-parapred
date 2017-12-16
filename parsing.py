@@ -45,9 +45,10 @@ class Chain(Entity):
 
 
 class Residue(Entity):
-    def __init__(self, name, id, full_seq_num):
+    def __init__(self, name, id, full_name, full_seq_num):
         Entity.__init__(self, name, id)
         self.full_seq_num = full_seq_num
+        self.full_name = full_name
 
     def __repr__(self):
         seq = self.get_id()
@@ -57,6 +58,9 @@ class Residue(Entity):
     def get_unpacked_list(self):
         return self.child_list
 
+    def get_full_name(self):
+        return self.full_name
+
 
 class Atom(object):
     def __init__(self, line):
@@ -64,9 +68,10 @@ class Atom(object):
         atom_features = [f for f in atom_features if f != '' and f != '\n']
         self.serial_num = int(line[6:11])
         self.name = line[12:16]
-        self.res_name = line[16:20]
+        self.res_name = line[17:20]
+        self.res_full_name = line[16:20]
         self.chain_id = line[21]
-        self.full_seq_num = line[22:27]
+        self.res_full_seq_num = line[22:27]
         self.res_seq_num = int(line[22:26])
         self.x_coord = float(line[30:38])
         self.y_coord = float(line[38:46])
@@ -119,11 +124,11 @@ class Model(object):
             self.ab_h_chain = Chain(atom.chain_id)
         already_exists = False
         for res in self.ab_h_chain.child_list:
-            if atom.full_seq_num == res.full_seq_num:
+            if atom.res_full_seq_num == res.full_seq_num:
                 already_exists = True
                 res.child_list.append(atom)
         if not already_exists:
-            res = Residue(atom.res_name, atom.res_seq_num, atom.full_seq_num)
+            res = Residue(atom.res_name, atom.res_seq_num, atom.res_full_name, atom.res_full_seq_num)
             res.child_list.append(atom)
             self.ab_h_chain.child_list.append(res)
 
@@ -132,11 +137,11 @@ class Model(object):
             self.ab_l_chain = Chain(atom.chain_id)
         already_exists = False
         for res in self.ab_l_chain.child_list:
-            if atom.full_seq_num == res.full_seq_num:
+            if atom.res_full_seq_num == res.full_seq_num:
                 already_exists = True
                 res.child_list.append(atom)
         if not already_exists:
-            res = Residue(atom.res_name, atom.res_seq_num, atom.full_seq_num)
+            res = Residue(atom.res_name, atom.res_seq_num, atom.res_full_name, atom.res_full_seq_num)
             res.child_list.append(atom)
             self.ab_l_chain.child_list.append(res)
 
@@ -145,11 +150,11 @@ class Model(object):
             self.ag_chain = Chain(atom.chain_id)
         already_exists = False
         for res in self.ag_chain.child_list:
-            if atom.full_seq_num == res.full_seq_num:
+            if atom.res_full_seq_num == res.full_seq_num:
                 already_exists = True
                 res.child_list.append(atom)
         if not already_exists:
-            res = Residue(atom.res_name, atom.res_seq_num, atom.full_seq_num)
+            res = Residue(atom.res_name, atom.res_seq_num, atom.res_full_name, atom.res_full_seq_num)
             res.child_list.append(atom)
             self.ag_chain.child_list.append(res)
 
@@ -170,8 +175,9 @@ def get_pdb_structure(pdb_file_name, ab_h_chain, ab_l_chain, ag_chain):
         if line.startswith('ATOM') or line.startswith('HETATM'):
             atom = Atom(line)
             res_name = atom.res_name
+            res_full_name = atom.res_full_name
             res_seq_num = atom.res_seq_num
-            full_seq_num = atom.full_seq_num
+            res_full_seq_num = atom.res_full_seq_num
             chain_id = atom.chain_id
 
             if res_name[0] == 'A' or res_name[0] == " ":
@@ -191,9 +197,9 @@ def get_pdb_structure(pdb_file_name, ab_h_chain, ab_l_chain, ag_chain):
                     if ((chain_id == ab_h_chain and cdr_name.startswith('H'))\
                         or (chain_id == ab_l_chain and cdr_name.startswith('L'))) \
                                     and res_seq_num in cdr_range:
-                        residue = model.cdr_list_has_res(cdrs[cdr_name], res_name, full_seq_num)
+                        residue = model.cdr_list_has_res(cdrs[cdr_name], res_name, res_full_seq_num)
                         if residue == None:
-                            residue = Residue(res_name, res_seq_num, full_seq_num)
+                            residue = Residue(res_name, res_seq_num, res_full_name, res_full_seq_num)
                         residue.add_child(atom)
                         model.add_residue(residue, cdr_name)
                 if " | " in ag_chain:

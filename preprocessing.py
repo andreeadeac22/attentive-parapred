@@ -7,6 +7,7 @@ from parsing import *
 from search import *
 from Bio.PDB import Polypeptide
 from os.path import isfile
+import numpy as np
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -31,7 +32,7 @@ def load_chains(csv_file):
     print("in load_chains")
     i=0
     for _, column in csv_file.iterrows():
-        #if (i<150):
+        #if (i<15):
         #if (column['pdb'] == "4xtr"):
         pdb_name = column['pdb']
         ab_h_chain = column['Hchain']
@@ -128,6 +129,7 @@ def process_chains(ag_search, cdrs, max_cdr_length):
     cdr_mats = []
     cont_mats = []
     cdr_masks = []
+    lengths = []
     for cdr_name in ["H1", "H2", "H3", "L1", "L2", "L3"]:
         # Converting residues to amino acid sequences
         cdr_chain = residue_seq_to_one(cdrs[cdr_name])
@@ -135,6 +137,7 @@ def process_chains(ag_search, cdrs, max_cdr_length):
         cdr_mat_pad = torch.zeros(max_cdr_length, NUM_FEATURES)
         cdr_mat_pad[:cdr_mat.shape[0], :] = cdr_mat
         cdr_mats.append(cdr_mat_pad)
+        lengths.append(cdr_mat.shape[0])
 
         if len(contact[cdr_name]) > 0:
             cont_mat = torch.FloatTensor(contact[cdr_name])
@@ -153,7 +156,7 @@ def process_chains(ag_search, cdrs, max_cdr_length):
     lbls = torch.stack(cont_mats)
     masks = torch.stack(cdr_masks)
 
-    return cdrs, lbls, masks, (num_residues, num_in_contact)
+    return cdrs, lbls, masks, (num_residues, num_in_contact), lengths
 
 
 def process_dataset(csv_file):
@@ -163,14 +166,14 @@ def process_dataset(csv_file):
 
     all_cdrs = []
     all_lbls = []
+    all_lengths = []
     all_masks = []
 
     for ag_search, cdrs, pdb in load_chains(csv_file):
         print("Processing PDB ", pdb, file=f)
         print("Processing PDB ", pdb)
-        cdrs, lbls, masks, (numresidues, numincontact) = process_chains(ag_search, cdrs, max_cdr_length = MAX_CDR_LENGTH)
 
-        print("masks, masks")
+        cdrs, lbls, masks, (numresidues, numincontact), lengths = process_chains(ag_search, cdrs, max_cdr_length = MAX_CDR_LENGTH)
 
         num_in_contact += numincontact
         num_residues += numresidues
@@ -178,6 +181,7 @@ def process_dataset(csv_file):
         all_cdrs.append(cdrs)
         all_lbls.append(lbls)
         all_masks.append(masks)
+        all_lengths.append(lengths)
 
     print("num_residues", num_residues, file=f)
     print("num_in_contact", num_in_contact, file=f)
@@ -185,6 +189,22 @@ def process_dataset(csv_file):
     cdrs = torch.cat(all_cdrs)
     lbls = torch.cat(all_lbls)
     masks = torch.cat(all_masks)
+
+    flat_lengths = [item for sublist in all_lengths for item in sublist]
+
+    order = np.argsort(flat_lengths)
+    order = order.tolist()
+    order.reverse()
+
+    flat_lengths.sort(reverse=True)
+    #lengths = torch.Tensor(flat_lengths)
+
+    index = torch.LongTensor(order)
+
+    cdrs.index_copy_(0, index, cdrs)
+    lbls.index_copy_(0, index, lbls)
+    masks.index_copy_(0, index, masks)
+
     print("cdrs: ", cdrs, file=f)
     print("lbls: ", lbls, file=f)
     print("masks: ", masks, file=f)
@@ -195,11 +215,11 @@ def process_dataset(csv_file):
         "lbls" : lbls,
         "masks" : masks,
         "max_cdr_len": MAX_CDR_LENGTH,
-        "pos_class_weight" : num_residues/num_in_contact
+        "pos_class_weight" : num_residues/num_in_contact,
+        "lengths": flat_lengths
     }
 
 def open_dataset(summary_file, dataset_cache="processed-dataset.p"):
-
     if isfile(dataset_cache):
         print("Precomputed dataset found, loading...")
         with open(dataset_cache, "rb") as f:

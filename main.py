@@ -1,4 +1,5 @@
 from torch.autograd import Variable
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from preprocessing import open_dataset
@@ -6,21 +7,24 @@ from preprocessing import NUM_FEATURES, data_frame
 from model import *
 import torch.optim as optim
 from torch import squeeze
+from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence
+from torch import index_select
 
 
 def full_run(dataset="data/sabdab_27_jun_95_90.csv", out_weights="weights.h5"):
     print("main, full_run")
     cache_file = dataset.split("/")[-1] + ".p"
     dataset = open_dataset(data_frame, dataset_cache=cache_file)
-    cdrs, lbls, masks = dataset["cdrs"], dataset["lbls"], dataset["masks"]
+    cdrs, total_lbls, masks, lengths = dataset["cdrs"], dataset["lbls"], dataset["masks"], dataset["lengths"]
 
     epochs = 16
 
     print("cdrs shape", cdrs.shape)
-    print("lbls shape", lbls.shape)
+    print("lbls shape", total_lbls.shape)
     print("masks shape", masks.shape)
+    print("all_lengths", lengths)
 
-    sample_weight = squeeze((lbls * 1.5 + 1) * masks)
+    # sample_weight = squeeze((lbls * 1.5 + 1) * masks)
     model = AbSeqModel()
 
     # create your optimizer
@@ -30,20 +34,37 @@ def full_run(dataset="data/sabdab_27_jun_95_90.csv", out_weights="weights.h5"):
                             lr=0.001)  # l2 regularizer is weight_decay, included in optimizer
     criterion = nn.BCELoss()
 
-    input = Variable(cdrs)
+    total_input = Variable(cdrs)
 
     for i in range(epochs):
         if i<10:
             optimizer = optimizer1
         else:
             optimizer = optimizer2
-        optimizer.zero_grad()  # zero the gradient buffers
-        output = model(input)
-        loss = criterion(output, lbls)
-        loss.backward()
-        optimizer.step()  # Does the update
+        for j in range(0, cdrs.shape[0], 32):
+            optimizer.zero_grad()  # zero the gradient buffers
+            interval = [x for x in range(j, min(cdrs.shape[0],j+32))]
+            interval = torch.LongTensor(interval)
+            input = index_select(total_input.data, 0, interval)
+            input = Variable(input, requires_grad=True)
+            print("j", j)
+            print("input shape", input.data.shape)
+            #print("lengths", lengths[j:j+32])
+            output = model(input, lengths[j:j+32])
+            lbls = index_select(total_lbls, 0, interval)
+            print("lbls before pack", lbls.shape)
+            lbls = Variable(lbls)
 
-    model.save_weights(out_weights)
+            packed_input = pack_padded_sequence(lbls, lengths[j:j+32], batch_first=True)
+
+            lbls, _ = pad_packed_sequence(packed_input, batch_first=True)
+
+            print("lbls after pack", lbls.data.shape)
+            loss = criterion(output, lbls)
+            loss.backward()
+            optimizer.step()  # Does the update
+
+    torch.save(model.state_dict(), "weights.h5")
 
 def run_cv(dataset="data/sabdab_27_jun_95_90.csv",
            output_folder="cv-ab-seq",
