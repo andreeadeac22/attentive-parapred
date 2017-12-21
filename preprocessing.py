@@ -222,19 +222,14 @@ def process_dataset(csv_file):
         "lengths": flat_lengths
     }
 
-def open_dataset(summary_file, dataset_cache="processed-dataset.p"):
-    """""
+def open_dataset(summary_file=data_frame, dataset_cache="processed-dataset.p"):
     if isfile(dataset_cache):
         print("Precomputed dataset found, loading...")
         with open(dataset_cache, "rb") as f:
             dataset = pickle.load(f)
     else:
-    """
-    print("Computing and storing the dataset...")
-    dataset = process_dataset(summary_file)
-    with open(dataset_cache, "wb") as f:
-        pickle.dump(dataset, f)
-
+        print("Computing and storing the dataset...")
+        dataset = process_dataset(summary_file)
+        with open(dataset_cache, "wb") as f:
+            pickle.dump(dataset, f)
     return dataset
-
-open_dataset(data_frame)

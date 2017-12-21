@@ -10,7 +10,10 @@ from torch import squeeze
 from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence
 from torch import index_select
 
-use_cuda = torch.cuda.is_available()
+from os import makedirs
+from os.path import isfile
+
+from evaluation import kfold_cv_eval
 
 def full_run(dataset="data/sabdab_27_jun_95_90.csv", out_weights="weights.h5"):
     print("main, full_run")
@@ -75,20 +78,19 @@ def full_run(dataset="data/sabdab_27_jun_95_90.csv", out_weights="weights.h5"):
 
     torch.save(model.state_dict(), "weights.h5")
 
-def run_cv(dataset="data/sabdab_27_jun_95_90.csv",
+def run_cv(dataset="sabdab_27_jun_95_90.csv",
            output_folder="cv-ab-seq",
            num_iters=10):
     cache_file = dataset.split("/")[-1] + ".p"
-    dataset = open_dataset(dataset, dataset_cache=cache_file)
-    model_factory = lambda: AbSeqModel()
+    dataset = open_dataset(dataset_cache=cache_file)
 
-    makedirs(output_folder + "/weights")
+    #makedirs(output_folder + "/weights")
     for i in range(num_iters):
         print("Crossvalidation run", i+1)
         output_file = "{}/run-{}.p".format(output_folder, i)
         weights_template = output_folder + "/weights/run-" + \
                            str(i) + "-fold-{}.h5"
-        kfold_cv_eval(model_factory, dataset,
+        kfold_cv_eval(dataset,
                       output_file, weights_template, seed=i)
 
-full_run()
+run_cv()
