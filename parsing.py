@@ -179,8 +179,9 @@ def get_pdb_structure(pdb_file_name, ab_h_chain, ab_l_chain, ag_chain):
             res_seq_num = atom.res_seq_num
             res_full_seq_num = atom.res_full_seq_num
             chain_id = atom.chain_id
-
-            if res_name[0] == 'A' or res_name[0] == " ":
+            #print("res_name", res_name, file=f)
+            #print("res_full_name", res_full_name, file=f)
+            if res_full_name[0] == 'A' or res_full_name[0] == " ":
                 if chain_id == ab_h_chain:
                     model.add_atom_to_ab_h_chain(atom)
 
@@ -210,7 +211,7 @@ def get_pdb_structure(pdb_file_name, ab_h_chain, ab_l_chain, ag_chain):
                     if chain_id == ag_chain:
                         model.add_agatom(atom)
 
-    print("ab_h_chain", "res number", pdb_file_name, len(model.ab_h_chain.child_list), file=f)
+    #print("ab_h_chain", "res number", pdb_file_name, len(model.ab_h_chain.child_list), file=f)
     num_atoms = 0
     for res in model.ab_h_chain.child_list:
         # print("Res", res, len(res.child_list), "       ", num_atoms, file=f)
@@ -221,9 +222,9 @@ def get_pdb_structure(pdb_file_name, ab_h_chain, ab_l_chain, ag_chain):
             for atom in res.child_list:
                 print(atom, atom.res_name, file=f)
         """
-    print("atoms number", num_atoms, file=f)
+    #print("atoms number", num_atoms, file=f)
 
-    print("ab_l_chain", "res number", pdb_file_name, len(model.ab_l_chain.child_list), file=f)
+    #print("ab_l_chain", "res number", pdb_file_name, len(model.ab_l_chain.child_list), file=f)
     num_atoms = 0
     for res in model.ab_l_chain.child_list:
         # print("Res", res, len(res.child_list), "       ", num_atoms, file=f)
@@ -234,13 +235,13 @@ def get_pdb_structure(pdb_file_name, ab_h_chain, ab_l_chain, ag_chain):
             for atom in res.child_list:
                 print(atom, atom.res_name, file=f)
         """
-    print("atoms number", num_atoms, file=f)
+    #print("atoms number", num_atoms, file=f)
 
     if " | " not in ag_chain:
-        print("ag_chain", "res number", pdb_file_name, len(model.ag_chain.child_list), file=f)
+        #print("ag_chain", "res number", pdb_file_name, len(model.ag_chain.child_list), file=f)
         num_atoms = 0
         for res in model.ag_chain.child_list:
-            print("Res", res, len(res.child_list), "       ", num_atoms, file=f)
+            #print("Res", res, len(res.child_list), "       ", num_atoms, file=f)
             num_atoms = num_atoms + len(res.child_list)
             """""
             if res.get_id() == 139:
@@ -248,7 +249,7 @@ def get_pdb_structure(pdb_file_name, ab_h_chain, ab_l_chain, ag_chain):
                 for atom in res.child_list:
                     print(atom, atom.res_name, file=f)
             """
-        print("atoms number", num_atoms, file=f)
+        #print("atoms number", num_atoms, file=f)
 
     return cdrs, model.agatoms
 

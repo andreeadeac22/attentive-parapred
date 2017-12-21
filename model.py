@@ -1,4 +1,5 @@
 from torch.autograd import Variable
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence
@@ -8,21 +9,24 @@ class AbSeqModel(nn.Module):
     def __init__(self):
         super(AbSeqModel, self).__init__()
         # kernel
-        self.conv1 = nn.Conv1d(32, 32, 3, padding = 1)
+        self.conv1 = nn.Conv1d(28, 28, 3, padding = 1)
         self.elu = nn.ELU()
         self.dropout1 = nn.Dropout(0.15)
         self.bidir_lstm = nn.LSTM(28, 256, bidirectional = True)
         self.dropout2 = nn.Dropout(0.3)
-        self.fully = nn.Linear(512, 1)
-        self.conv2 = nn.Conv1d(10, 10, 1)
+        self.conv2 = nn.Conv1d(512, 1, 1)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, input, lengths):
         initial = input
         x = input
 
-
         print("initial x", x.data.shape)
+
+        x = torch.transpose(x, 1, 2)
+
+        print("before conv1 x", x.data.shape)
+
         # Conv1D
         # elu
         # l2 regularizer(in optimizer)
@@ -30,6 +34,7 @@ class AbSeqModel(nn.Module):
 
         print("after conv1", x.data.shape)
 
+        x = torch.transpose(x, 1, 2)
         x = self.elu(x)
 
         print("after elu", x.data.shape)
@@ -74,13 +79,17 @@ class AbSeqModel(nn.Module):
         x = self.dropout2(x)
         print("after dropout 2", x.data.shape)
 
+        x = torch.transpose(x, 1, 2)
+
         # Time-distributed?
         # dense
         # sigmoid
-        #x = self.conv2(x)
+        x = self.conv2(x)
         print("after dense - linear = conv2", x.data.shape)
 
-        x = self.fully(x)
+        #x = self.fully(x)
+
+        x = torch.transpose(x, 1, 2)
 
         print("after linear", x.data.shape)
         x = self.sigmoid(x)

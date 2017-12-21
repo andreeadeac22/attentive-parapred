@@ -8,4 +8,4 @@ def compare_files(fname, gname):
         if gcontent[i] != f:
             print("these don't match", f, gcontent[i])
         i=i+1
-compare_files("chains.txt", "edgar-parapred/edgar.txt")
+compare_files("chains.txt", "parapred-master/edgar.txt")

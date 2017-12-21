@@ -33,7 +33,7 @@ def load_chains(csv_file):
     i=0
     for _, column in csv_file.iterrows():
         #if (i<15):
-        #if (column['pdb'] == "4xtr"):
+        #if (column['pdb'] == "4bz1"):
         pdb_name = column['pdb']
         ab_h_chain = column['Hchain']
         ab_l_chain = column['Lchain']
@@ -116,10 +116,10 @@ def process_chains(ag_search, cdrs, max_cdr_length):
 
     for cdr_name, cdr_chain in cdrs.items():
         contact[cdr_name] =  [residue_in_contact_with(res, ag_search) for res in cdr_chain]
-        # print("cdr_name", cdr_name, file=f)
-        # print("contact[cdr_name]", contact[cdr_name], file=f)
-        # print("num_residues", len(contact[cdr_name]), file=f)
-        # print("num_in_contact", sum(contact[cdr_name]), file=f)
+        #print("cdr_name", cdr_name, file=f)
+        #print("contact[cdr_name]", contact[cdr_name], file=f)
+        #print("num_residues", len(contact[cdr_name]), file=f)
+        #print("num_in_contact", sum(contact[cdr_name]), file=f)
         num_residues += len(contact[cdr_name])
         num_in_contact += sum(contact[cdr_name])
 
@@ -160,7 +160,7 @@ def process_chains(ag_search, cdrs, max_cdr_length):
 
 
 def process_dataset(csv_file):
-    print("Preprocessing", file=f)
+    #print("Preprocessing", file=f)
     num_in_contact = 0
     num_residues = 0
 
@@ -174,6 +174,9 @@ def process_dataset(csv_file):
         print("Processing PDB ", pdb)
 
         cdrs, lbls, masks, (numresidues, numincontact), lengths = process_chains(ag_search, cdrs, max_cdr_length = MAX_CDR_LENGTH)
+
+        print("num_residues", numresidues, file=f)
+        print("num_in_contact", numincontact, file=f)
 
         num_in_contact += numincontact
         num_residues += numresidues
@@ -205,10 +208,10 @@ def process_dataset(csv_file):
     lbls.index_copy_(0, index, lbls)
     masks.index_copy_(0, index, masks)
 
-    print("cdrs: ", cdrs, file=f)
-    print("lbls: ", lbls, file=f)
-    print("masks: ", masks, file=f)
-    print("max_cdr_len: ", MAX_CDR_LENGTH, file=f)
+    #print("cdrs: ", cdrs, file=f)
+    #print("lbls: ", lbls, file=f)
+    #print("masks: ", masks, file=f)
+    #print("max_cdr_len: ", MAX_CDR_LENGTH, file=f)
     print("pos_class_weight: ", num_residues/num_in_contact, file=f)
     return {
         "cdrs" : cdrs,
@@ -220,16 +223,18 @@ def process_dataset(csv_file):
     }
 
 def open_dataset(summary_file, dataset_cache="processed-dataset.p"):
+    """""
     if isfile(dataset_cache):
         print("Precomputed dataset found, loading...")
         with open(dataset_cache, "rb") as f:
             dataset = pickle.load(f)
     else:
-        print("Computing and storing the dataset...")
-        dataset = process_dataset(summary_file)
-        with open(dataset_cache, "wb") as f:
-            pickle.dump(dataset, f)
+    """
+    print("Computing and storing the dataset...")
+    dataset = process_dataset(summary_file)
+    with open(dataset_cache, "wb") as f:
+        pickle.dump(dataset, f)
 
     return dataset
 
-
+open_dataset(data_frame)

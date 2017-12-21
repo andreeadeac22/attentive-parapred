@@ -10,6 +10,7 @@ from torch import squeeze
 from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence
 from torch import index_select
 
+use_cuda = torch.cuda.is_available()
 
 def full_run(dataset="data/sabdab_27_jun_95_90.csv", out_weights="weights.h5"):
     print("main, full_run")
@@ -36,6 +37,12 @@ def full_run(dataset="data/sabdab_27_jun_95_90.csv", out_weights="weights.h5"):
 
     total_input = Variable(cdrs)
 
+    if use_cuda:
+        model.cuda()
+        total_input = total_input.cuda()
+        total_lbls = total_lbls.cuda()
+        masks = masks.cuda()
+
     for i in range(epochs):
         if i<10:
             optimizer = optimizer1
@@ -45,6 +52,8 @@ def full_run(dataset="data/sabdab_27_jun_95_90.csv", out_weights="weights.h5"):
             optimizer.zero_grad()  # zero the gradient buffers
             interval = [x for x in range(j, min(cdrs.shape[0],j+32))]
             interval = torch.LongTensor(interval)
+            if use_cuda:
+                interval = interval.cuda()
             input = index_select(total_input.data, 0, interval)
             input = Variable(input, requires_grad=True)
             print("j", j)
@@ -71,7 +80,7 @@ def run_cv(dataset="data/sabdab_27_jun_95_90.csv",
            num_iters=10):
     cache_file = dataset.split("/")[-1] + ".p"
     dataset = open_dataset(dataset, dataset_cache=cache_file)
-    model_factory = lambda: ab_seq_model(dataset["max_cdr_len"])
+    model_factory = lambda: AbSeqModel()
 
     makedirs(output_folder + "/weights")
     for i in range(num_iters):
