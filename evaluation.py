@@ -1,4 +1,3 @@
-import numpy as np
 from sklearn.model_selection import KFold
 
 from torch.autograd import Variable
@@ -14,6 +13,9 @@ import pickle
 
 from model import AbSeqModel
 
+MAX_CDR_LENGTH = 32
+
+
 use_cuda = torch.cuda.is_available()
 weights_template="weights-fold-{}.h5"
 
@@ -21,7 +23,6 @@ def simple_run(model, cdrs, lbls, masks, lengths, weights_template_number):
     epochs = 16
 
     # sample_weight = squeeze((lbls * 1.5 + 1) * masks)
-    model = AbSeqModel()
 
     # create your optimizer
     optimizer1 = optim.Adam(model.parameters(), weight_decay=0.01,
@@ -55,19 +56,19 @@ def simple_run(model, cdrs, lbls, masks, lengths, weights_template_number):
                 interval = interval.cuda()
             input = index_select(total_input.data, 0, interval)
             input = Variable(input, requires_grad=True)
-            print("j", j)
-            print("input shape", input.data.shape)
+            #print("j", j)
+            #print("input shape", input.data.shape)
             # print("lengths", lengths[j:j+32])
             output = model(input, lengths[j:j + 32])
             lbls = index_select(total_lbls, 0, interval)
-            print("lbls before pack", lbls.shape)
+            #print("lbls before pack", lbls.shape)
             lbls = Variable(lbls)
 
             packed_input = pack_padded_sequence(lbls, lengths[j:j + 32], batch_first=True)
 
             lbls, _ = pad_packed_sequence(packed_input, batch_first=True)
 
-            print("lbls after pack", lbls.data.shape)
+            #print("lbls after pack", lbls.data.shape)
             loss += criterion(output, lbls)
             loss.backward(retain_graph=True)
             optimizer.step()  # Does the update
@@ -86,8 +87,8 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
 
     for i, (train_idx, test_idx) in enumerate(kf.split(cdrs)):
         print("Fold: ", i + 1)
-        print(train_idx)
-        print(test_idx)
+        #print(train_idx)
+        #print(test_idx)
 
         lengths_train = [lengths[i] for i in train_idx]
         lengths_test = [lengths[i] for i in test_idx]
@@ -99,22 +100,65 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
         lbls_train = index_select(lbls, 0, train_idx)
         mask_train = index_select(masks, 0, train_idx)
 
-        cdrs_test = index_select(cdrs, 0, test_idx)
-        lbls_test = index_select(lbls, 0, test_idx)
-        mask_test = index_select(masks, 0, test_idx)
+        cdrs_test = Variable(index_select(cdrs, 0, test_idx))
+        lbls_test = Variable(index_select(lbls, 0, test_idx))
+        mask_test = Variable(index_select(masks, 0, test_idx))
 
         model = AbSeqModel()
 
         model = simple_run(model, cdrs_train, lbls_train, mask_train, lengths_train, i)
 
+        if use_cuda:
+            cdrs_test = cdrs_test.cuda()
+            lbls_test = lbls_test.cuda()
+
         probs_test = model(cdrs_test, lengths_test)
         all_lbls.append(lbls_test)
-        all_probs.append(probs_test)
+
+        probs_test_pad = torch.zeros(probs_test.data.shape[0], MAX_CDR_LENGTH, probs_test.data.shape[2])
+        probs_test_pad[:probs_test.data.shape[0], :probs_test.data.shape[1], :] = probs_test.data
+        probs_test_pad = Variable(probs_test_pad)
+
+        all_probs.append(probs_test_pad)
         all_masks.append(mask_test)
 
-    lbl_mat = torch.concatenate(all_lbls)
-    prob_mat = torch.concatenate(all_probs)
-    mask_mat = torch.concatenate(all_masks)
+    lbl_mat = torch.cat(all_lbls)
+    prob_mat = torch.cat(all_probs)
+    mask_mat = torch.cat(all_masks)
 
     with open(output_file, "wb") as f:
         pickle.dump((lbl_mat, prob_mat, mask_mat), f)
+
+"""""
+
+def open_crossval_results(folder="cv-ab-seq", num_results=10,
+                          loop_filter=None, flatten_by_lengths=True):
+    class_probabilities = []
+    labels = []
+
+    for r in range(num_results):
+        result_filename = "{}/run-{}.p".format(folder, r)
+        with open(result_filename, "rb") as f:
+            lbl_mat, prob_mat, mask_mat = pickle.load(f)
+
+        # Get entries corresponding to the given loop
+        if loop_filter is not None:
+            lbl_mat = lbl_mat[loop_filter::6]
+            prob_mat = prob_mat[loop_filter::6]
+            mask_mat = mask_mat[loop_filter::6]
+
+        if not flatten_by_lengths:
+            class_probabilities.append(prob_mat)
+            labels.append(lbl_mat)
+            continue
+
+        # Discard sequence padding
+        seq_lens = np.sum(np.squeeze(mask_mat), axis=1)
+        p = flatten_with_lengths(prob_mat, seq_lens)
+        l = flatten_with_lengths(lbl_mat, seq_lens)
+
+        class_probabilities.append(p)
+        labels.append(l)
+
+    return labels, class_probabilities
+"""
