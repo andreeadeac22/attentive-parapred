@@ -11,16 +11,14 @@ from torch import index_select
 
 import pickle
 
-from model import AbSeqModel
+from model import *
+from constants import *
 
-MAX_CDR_LENGTH = 32
-
-
-use_cuda = torch.cuda.is_available()
-weights_template="weights-fold-{}.h5"
-
-def simple_run(model, cdrs, lbls, masks, lengths, weights_template_number):
+def simple_run(cdrs, lbls, masks, lengths, weights_template, weights_template_number):
     epochs = 16
+    #print("simple run - weights_template", weights_template)
+
+    model = AbSeqModel()
 
     # sample_weight = squeeze((lbls * 1.5 + 1) * masks)
 
@@ -104,9 +102,7 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
         lbls_test = Variable(index_select(lbls, 0, test_idx))
         mask_test = Variable(index_select(masks, 0, test_idx))
 
-        model = AbSeqModel()
-
-        model = simple_run(model, cdrs_train, lbls_train, mask_train, lengths_train, i)
+        model = simple_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i)
 
         if use_cuda:
             cdrs_test = cdrs_test.cuda()

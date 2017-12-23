@@ -3,7 +3,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence
+
 from preprocessing import NUM_FEATURES
+from constants import *
 
 class AbSeqModel(nn.Module):
     def __init__(self):
@@ -21,31 +23,31 @@ class AbSeqModel(nn.Module):
         initial = input
         x = input
 
-        print("initial x", x.data.shape)
+        #print("initial x", x.data.shape)
 
         x = torch.transpose(x, 1, 2)
 
-        print("before conv1 x", x.data.shape)
+        #print("before conv1 x", x.data.shape)
 
         # Conv1D
         # elu
         # l2 regularizer(in optimizer)
         x = self.conv1(x)
 
-        print("after conv1", x.data.shape)
+        #print("after conv1", x.data.shape)
 
         x = torch.transpose(x, 1, 2)
         x = self.elu(x)
 
-        print("after elu", x.data.shape)
+        #print("after elu", x.data.shape)
 
         # multiply x with the mask
 
         x = self.dropout1(x)
 
         #Add residual connections
-        print("after dropout", x.data.shape)
-        print("initial", initial.data.shape)
+        #print("after dropout", x.data.shape)
+        #print("initial", initial.data.shape)
         x = x + initial
 
 
@@ -72,12 +74,12 @@ class AbSeqModel(nn.Module):
         output, hidden = self.bidir_lstm(packed_input)
 
         x, _ = pad_packed_sequence(output, batch_first = True)
-        print("after lstm", x.data.shape)
+        #print("after lstm", x.data.shape)
 
 
         #Dropout
         x = self.dropout2(x)
-        print("after dropout 2", x.data.shape)
+        #print("after dropout 2", x.data.shape)
 
         x = torch.transpose(x, 1, 2)
 
@@ -85,13 +87,13 @@ class AbSeqModel(nn.Module):
         # dense
         # sigmoid
         x = self.conv2(x)
-        print("after dense - linear = conv2", x.data.shape)
+        #print("after dense - linear = conv2", x.data.shape)
 
         #x = self.fully(x)
 
         x = torch.transpose(x, 1, 2)
 
-        print("after linear", x.data.shape)
+        #print("after linear", x.data.shape)
         x = self.sigmoid(x)
-        print("at the end", x.data.shape)
+        #print("at the end", x.data.shape)
         return x

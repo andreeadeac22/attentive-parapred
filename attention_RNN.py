@@ -4,6 +4,8 @@ from torch.autograd import Variable
 from torch import optim
 import torch.nn.functional as F
 
+from constants import *
+
 class AttentionRNN(nn.Module):
     def __init__(self, input_size, hidden_size):
         super(AttentionRNN, self).__init__()
@@ -11,32 +13,30 @@ class AttentionRNN(nn.Module):
         self.hidden_size = hidden_size
 
         # for Ux_j - Ux_j is the same fully-connected layer (multiplication by U), time-distirbuted
-        self.conv = nn.Conv1d(input_size, hidden_size, 1)
+        self.conv = nn.Conv1d(input_size, 1, 1)
 
         self.lstm_cell = nn.LSTMCell(hidden_size, hidden_size)
 
-        self.fc1 = nn.Linear(hidden_size, hidden_size)
-
-        self.attn = nn.Linear(hidden_size, input_size) # Wh_t + Ux_j
+        self.fc1 = nn.Linear(hidden_size, 1)
 
 
-    def forward(self, input, last_hidden_state):
-        W_a = self.fc1(last_hidden_state)
-        U_a = self.conv(input)
-
-        attn_weights = F.softmax(
-            self.attn(torch.cat(U_a, W_a), 1), dim=1)
-
-        context = torch.bmm(attn_weights,
-                                 input)
-
-        output, hidden = self.lstm_cell(last_hidden_state, context)
-        return hidden
+    def forward(self, input, bias_mat):
+        u_a = self.conv(input)
+        all_hidden = []
+        hidden = Variable(torch.zeros(1,1))  #TODO: decide dimesnions for hidden
+        context = Variable(torch.zeros(1,1))
 
 
-    def initHidden(self):
-        result = Variable(torch.zeros(1, 1, self.hidden_size))
         if use_cuda:
-            return result.cuda()
-        else:
-            return result
+            hidden = hidden.cuda()
+
+        for i in range(MAX_CDR_LENGTH):
+            w_a = self.fc1(hidden)
+            attn_weights = F.softmax(nn.LeakyRelu(u_a+w_a)+bias_mat)
+
+            context = torch.bmm(attn_weights,
+                                     input)
+
+            hidden, context = self.lstm_cell(context, (hidden, context))
+            all_hidden.append(hidden)
+        return all_hidden

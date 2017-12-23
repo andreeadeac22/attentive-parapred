@@ -6,13 +6,14 @@ import pandas as pd
 from parsing import *
 from search import *
 from Bio.PDB import Polypeptide
-from os.path import isfile
+from os.path import isfile, exists
 import numpy as np
+
+from constants import *
 
 import warnings
 warnings.filterwarnings("ignore")
 
-MAX_CDR_LENGTH = 32
 DATA_DIRECTORY = 'data/'
 PDBS_FORMAT = 'data/{}.pdb'
 CSV_NAME = 'sabdab_27_jun_95_90.csv'
@@ -132,11 +133,13 @@ def process_chains(ag_search, cdrs, max_cdr_length):
     lengths = []
     for cdr_name in ["H1", "H2", "H3", "L1", "L2", "L3"]:
         # Converting residues to amino acid sequences
+        print("cdr_chain", cdr_chain, file=f)
         cdr_chain = residue_seq_to_one(cdrs[cdr_name])
         cdr_mat = seq_to_one_hot(cdr_chain)
         cdr_mat_pad = torch.zeros(max_cdr_length, NUM_FEATURES)
         cdr_mat_pad[:cdr_mat.shape[0], :] = cdr_mat
         cdr_mats.append(cdr_mat_pad)
+        print("length", cdr_mat.shape[0], file=f)
         lengths.append(cdr_mat.shape[0])
 
         if len(contact[cdr_name]) > 0:
@@ -151,6 +154,7 @@ def process_chains(ag_search, cdrs, max_cdr_length):
         if len(cdr_chain) > 0:
             cdr_mask[:len(cdr_chain), 0] = 1
         cdr_masks.append(cdr_mask)
+        print("cdr_mask", cdr_mask, file=f)
 
     cdrs = torch.stack(cdr_mats)
     lbls = torch.stack(cont_mats)
@@ -200,7 +204,9 @@ def process_dataset(csv_file):
     order.reverse()
 
     flat_lengths.sort(reverse=True)
-    #lengths = torch.Tensor(flat_lengths)
+
+    print("flat_lengths", flat_lengths, file=f)
+    print("order", order, file=f)
 
     index = torch.LongTensor(order)
 
@@ -223,7 +229,7 @@ def process_dataset(csv_file):
     }
 
 def open_dataset(summary_file=data_frame, dataset_cache="processed-dataset.p"):
-    if isfile(dataset_cache):
+    if exists(dataset_cache) and isfile(dataset_cache):
         print("Precomputed dataset found, loading...")
         with open(dataset_cache, "rb") as f:
             dataset = pickle.load(f)
