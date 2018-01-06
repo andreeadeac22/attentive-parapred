@@ -15,12 +15,31 @@ class AbSeqModel(nn.Module):
         self.conv1 = nn.Conv1d(28, 28, 3, padding = 1)
         self.elu = nn.ELU()
         self.dropout1 = nn.Dropout(0.15)
-        self.bidir_lstm = nn.LSTM(28, 256, bidirectional = True)
+        self.bidir_lstm = nn.LSTM(28, 256, bidirectional = True, dropout=0.15)
         self.dropout2 = nn.Dropout(0.3)
         self.conv2 = nn.Conv1d(512, 1, 1)
         self.sigmoid = nn.Sigmoid()
 
-    def forward(self, input, masks, lengths):
+        for m in self.modules():
+            self.weights_init(m)
+
+    def weights_init(self,m):
+        if isinstance(m, nn.Conv1d):
+            torch.nn.init.xavier_uniform(m.weight.data)
+            m.bias.data.fill_(0.0)
+        if isinstance(m, nn.LSTM):
+            torch.nn.init.xavier_uniform(m.weight_ih_l0)
+            torch.nn.init.orthogonal(m.weight_hh_l0)
+            for names in m._all_weights:
+                for name in filter(lambda n: "bias" in n, names):
+                    bias = getattr(m, name)
+                    n = bias.size(0)
+                    start, end = n // 4, n // 2
+                    bias.data[start:end].fill_(1.0)
+            m.bias_ih_l0.data.fill_(0.0)
+
+
+    def forward(self, input, unpacked_masks, masks, lengths):
         initial = input
         x = input
 
@@ -35,24 +54,24 @@ class AbSeqModel(nn.Module):
         # l2 regularizer(in optimizer)
         x = self.conv1(x)
 
-        #print("after conv1", x.data, file=track_f)
+        #print("after conv1", x.data, file=print_file)
 
         x = torch.transpose(x, 1, 2)
 
-        #print("before mul 1", x.data, file=track_f)
+        #print("before mul 1", x.data, file=print_file)
 
-        x = torch.mul(x, masks)
+        x = torch.mul(x, unpacked_masks)
 
         x = self.elu(x)
 
-        #print("after elu", x.data, file=track_f)
+        print("after elu", x.data, file=print_file)
 
         # multiply x with the mask
 
-        x = self.dropout1(x)
+        #x = self.dropout1(x)
 
         #Add residual connections
-        #print("after dropout", x.data, file=track_f)
+        #print("after dropout", x.data, file=print_file)
         #print("initial", initial.data.shape)
         x = x + initial
 
@@ -80,12 +99,12 @@ class AbSeqModel(nn.Module):
         output, hidden = self.bidir_lstm(packed_input)
 
         x, _ = pad_packed_sequence(output, batch_first = True)
-        #print("after lstm", x.data, file=track_f)
+        print("after lstm", x.data, file=print_file)
 
 
         #Dropout
         x = self.dropout2(x)
-        #print("after dropout 2", x.data, file=track_f)
+        #print("after dropout 2", x.data, file=print_file)
 
         x = torch.transpose(x, 1, 2)
 
@@ -95,12 +114,15 @@ class AbSeqModel(nn.Module):
         x = self.conv2(x)
         #print("after dense - linear = conv2", x.data, file=track_f)
 
-        #x = self.fully(x)
-
         x = torch.transpose(x, 1, 2)
 
-        #print("after linear", x.data, file=track_f)
-        x = self.sigmoid(x)
+        print("after conv2", x.data, file=print_file)
+        #print("after sigmoid", x.data, file=print_file)
 
-        print("x at the end", x, file=track_f)
+        x = torch.mul(x, masks)
+        #print("after multi", x.data, file=track_f)
+
+
+        #print("x at the end", x, file=track_f)
+
         return x

@@ -18,32 +18,31 @@ import pickle
 from model import *
 from constants import *
 
-def simple_run(net, cdrs, lbls, masks, lengths, weights_template, weights_template_number):
+def simple_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_template, weights_template_number,
+               cdrs_test, lbls_test, masks_test, lengths_test):
     #print("simple run - weights_template", weights_template)
     print("simple run", file=print_file)
-    print("masks", masks, file=print_file)
-    print("lengths", lengths, file=print_file)
-
-    # sample_weight = squeeze((lbls * 1.5 + 1) * masks)
+    model = AbSeqModel()
 
     # create your optimizer
-    optimizer1 = optim.Adam(net.parameters(), weight_decay=0.01,
+    optimizer1 = optim.Adam(model.parameters(), weight_decay=0.01,
                             lr=0.01)  # l2 regularizer is weight_decay, included in optimizer
-    optimizer2 = optim.Adam(net.parameters(), weight_decay=0.01,
+    optimizer2 = optim.Adam(model.parameters(), weight_decay=0.01,
                             lr=0.001)  # l2 regularizer is weight_decay, included in optimizer
     criterion = nn.BCELoss()
 
-    total_input = Variable(cdrs)
-    total_lbls = lbls
-    total_masks = masks
-
-    # example_weight = torch.squeeze((lbls * 1.5 + 1) * masks)
+    total_input = Variable(cdrs_train)
+    total_lbls = lbls_train
+    total_masks = masks_train
 
     if use_cuda:
-        net.cuda()
+        model.cuda()
         total_input = total_input.cuda()
         total_lbls = total_lbls.cuda()
         total_masks = total_masks.cuda()
+        cdrs_test = cdrs_test.cuda()
+        lbls_test = lbls_test.cuda()
+        masks_test = masks_test.cuda()
 
     loss = 0
 
@@ -52,34 +51,82 @@ def simple_run(net, cdrs, lbls, masks, lengths, weights_template, weights_templa
             optimizer = optimizer1
         else:
             optimizer = optimizer2
-        for j in range(0, cdrs.shape[0], 32):
-            interval = [x for x in range(j, min(cdrs.shape[0], j + 32))]
+        epoch_loss = 0
+        print("Epoch: ", i, file=monitoring_file)
+        for j in range(0, cdrs_train.shape[0], 32):
+            interval = [x for x in range(j, min(cdrs_train.shape[0], j + 32))]
             interval = torch.LongTensor(interval)
             if use_cuda:
                 interval = interval.cuda()
             input = index_select(total_input.data, 0, interval)
             input = Variable(input, requires_grad=True)
             masks = Variable(index_select(total_masks, 0, interval))
-            #print("j", j)
+            print("train - j", j, file=print_file)
+
             #print("input shape", input.data.shape)
             # print("lengths", lengths[j:j+32])
 
-            output = net(input, masks, lengths[j:j + 32])
+            unpacked_masks = masks
+
+            packed_input = pack_padded_sequence(masks, lengths_train[j:j + 32], batch_first=True)
+
+            masks, _ = pad_packed_sequence(packed_input, batch_first=True)
+
+            output = model(input, unpacked_masks, masks, lengths_train[j:j + 32])
             lbls = index_select(total_lbls, 0, interval)
             #print("lbls before pack", lbls.shape)
             lbls = Variable(lbls)
 
-            packed_input = pack_padded_sequence(lbls, lengths[j:j + 32], batch_first=True)
+            packed_input = pack_padded_sequence(lbls, lengths_train[j:j + 32], batch_first=True)
 
             lbls, _ = pad_packed_sequence(packed_input, batch_first=True)
 
             #print("lbls after pack", lbls.data.shape)
-            loss = criterion(output, lbls)
-            loss.backward(retain_graph=True)
-            optimizer.step()  # Does the update
+            #loss = criterion(output, lbls)
 
-    print("net.state_dict().keys()", net.state_dict().keys)
-    torch.save(net.state_dict(), weights_template.format(weights_template_number))
+            #print("sigmoid(output)", F.sigmoid(output), file=print_file)
+            print("lbls", lbls, file=print_file)
+            print("output", output, file=print_file)
+
+            loss_weights = (lbls * 1.5 + 1) * masks
+            max_val = (-output).clamp(min=0)
+            loss = loss_weights * (output - output * lbls + max_val + ((-max_val).exp() + (-output - max_val).exp()).log())
+            #loss = - (lbls*torch.log(output) + (1-lbls)*torch.log(1-output))
+            print("loss before sum", loss, file=print_file)
+
+            print("loss size", loss.data.shape, file=print_file)
+
+            print("masks", masks, file=print_file)
+            print("masks size", masks.data.shape, file=print_file)
+
+            #loss = loss * masks
+
+            print("loss after multi", loss, file=print_file)
+
+            masks_added = masks.sum()
+
+            loss = loss.sum() / masks_added
+            #loss = loss / masks_added
+
+
+            print("Batch: ", j, file=monitoring_file)
+            print("Loss: ", loss.data, file=monitoring_file)
+
+            epoch_loss +=loss
+            loss.backward()
+            optimizer.step()  # Does the update
+        print("Loss at the end of epoch: ", epoch_loss, file=monitoring_file)
+
+    print("model.state_dict().keys()", model.state_dict().keys)
+    torch.save(model.state_dict(), weights_template.format(weights_template_number))
+
+    print("test", file=track_f)
+    unpacked_masks_test = masks_test
+    packed_input = pack_padded_sequence(masks_test, lengths_test, batch_first=True)
+    masks_test, _ = pad_packed_sequence(packed_input, batch_first=True)
+    probs_test = model(cdrs_test, unpacked_masks_test, masks_test, lengths_test)
+
+    return probs_test
 
 def kfold_cv_eval(dataset, output_file="crossval-data.p",
                   weights_template="weights-fold-{}.h5", seed=0):
@@ -115,18 +162,10 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
         lbls_test = Variable(index_select(lbls, 0, test_idx))
         mask_test = Variable(index_select(masks, 0, test_idx))
 
-        model = AbSeqModel()
-
-        simple_run(model, cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i)
-
-        if use_cuda:
-            model.cuda()
-            cdrs_test = cdrs_test.cuda()
-            lbls_test = lbls_test.cuda()
-            mask_test = mask_test.cuda()
-
-        probs_test = model(cdrs_test, mask_test, lengths_test)
+        probs_test = simple_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
+                                cdrs_test, lbls_test, mask_test, lengths_test)
         print("test", file=track_f)
+
         print("probs_test", probs_test, file=track_f)
 
         all_lbls.append(lbls_test)
@@ -251,6 +290,3 @@ def open_crossval_results(folder="cv-ab-seq", num_results=NUM_ITERATIONS,
 
     return labels, class_probabilities
 
-print_file = open("open_cv.txt", "w")
-prob_file = open("prob_file.txt", "w")
-data_file = open("dataset.txt", "w")

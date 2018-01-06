@@ -14,3 +14,9 @@ NUM_SPLIT = 3
 epochs = 16
 
 track_f = open("track_file.txt", "w")
+
+print_file = open("open_cv.txt", "w")
+prob_file = open("prob_file.txt", "w")
+data_file = open("dataset.txt", "w")
+
+monitoring_file = open("monitor.txt", "w")
