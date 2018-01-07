@@ -9,7 +9,7 @@ chothia_cdr_def = { "L1" : (24, 34), "L2" : (50, 56), "L3" : (89, 97),
 cdr_names = ["H1", "H2", "H3", "L1", "L2", "L3"]
 
 NUM_ITERATIONS = 1
-NUM_SPLIT = 3
+NUM_SPLIT = 10
 
 epochs = 16
 
@@ -20,3 +20,7 @@ prob_file = open("prob_file.txt", "w")
 data_file = open("dataset.txt", "w")
 
 monitoring_file = open("monitor.txt", "w")
+
+indices_file = open("indices.txt", "w")
+
+sort_file = open("sort_file.txt", "w")

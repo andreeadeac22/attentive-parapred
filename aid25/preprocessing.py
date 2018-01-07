@@ -198,8 +198,9 @@ def process_dataset(csv_file):
     lbls = torch.cat(all_lbls)
     masks = torch.cat(all_masks)
 
-    flat_lengths = [item for sublist in all_lengths for item in sublist]
 
+    flat_lengths = [item for sublist in all_lengths for item in sublist]
+    """""
     order = np.argsort(flat_lengths)
     order = order.tolist()
     order.reverse()
@@ -214,6 +215,7 @@ def process_dataset(csv_file):
     cdrs = torch.index_select(cdrs, 0, index)
     lbls = torch.index_select(lbls, 0, index)
     masks = torch.index_select(masks, 0, index)
+    """
 
     print("cdrs: ", cdrs, file=f)
     print("lbls: ", lbls, file=f)

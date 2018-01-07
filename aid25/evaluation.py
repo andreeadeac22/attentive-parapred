@@ -9,6 +9,7 @@ torch.set_printoptions(threshold=50000)
 import torch.nn as nn
 from model import *
 import torch.optim as optim
+from torch.optim import lr_scheduler
 from torch import squeeze
 from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence
 from torch import index_select
@@ -18,22 +19,63 @@ import pickle
 from model import *
 from constants import *
 
+def sort_batch(cdrs, masks, lengths, lbls):
+    order = np.argsort(lengths)
+    order = order.tolist()
+    order.reverse()
+
+    lengths.sort(reverse=True)
+
+    print("flat_lengths", lengths, file=sort_file)
+    print("order", order, file=sort_file)
+
+    index = Variable(torch.LongTensor(order))
+
+    if use_cuda:
+        index = index.cuda()
+
+    cdrs = torch.index_select(cdrs, 0, index)
+    lbls = torch.index_select(lbls, 0, index)
+    masks = torch.index_select(masks, 0, index)
+    return cdrs, masks, lengths, lbls
+
+
+def permute_training_data(cdrs, masks, lengths, lbls):
+    index = torch.randperm(cdrs.shape[0])
+
+    if use_cuda:
+        index = index.cuda()
+
+    cdrs = torch.index_select(cdrs, 0, index)
+    lbls = torch.index_select(lbls, 0, index)
+    masks = torch.index_select(masks, 0, index)
+    lengths = [lengths[i] for i in index]
+
+    return cdrs, masks, lengths, lbls
+
+
 def simple_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_template, weights_template_number,
                cdrs_test, lbls_test, masks_test, lengths_test):
     #print("simple run - weights_template", weights_template)
     print("simple run", file=print_file)
     model = AbSeqModel()
 
-    # create your optimizer
-    optimizer1 = optim.Adam(model.parameters(), weight_decay=0.01,
-                            lr=0.01)  # l2 regularizer is weight_decay, included in optimizer
-    optimizer2 = optim.Adam(model.parameters(), weight_decay=0.01,
-                            lr=0.001)  # l2 regularizer is weight_decay, included in optimizer
-    criterion = nn.BCELoss()
+    ignored_params = list(map(id, [model.conv1.weight, model.conv2.weight]))
+    base_params = filter(lambda p: id(p) not in ignored_params,
+                         model.parameters())
 
-    total_input = Variable(cdrs_train)
+    optimizer = optim.Adam([
+        {'params': base_params},
+        {'params': model.conv1.weight, 'weight_decay': 0.01},
+        {'params': model.conv2.weight, 'weight_decay': 0.01}
+    ], lr=0.01)
+
+    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[5], gamma=0.1)
+
+    total_input = cdrs_train
     total_lbls = lbls_train
     total_masks = masks_train
+    total_lengths = lengths_train
 
     if use_cuda:
         model.cuda()
@@ -44,86 +86,59 @@ def simple_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_templ
         lbls_test = lbls_test.cuda()
         masks_test = masks_test.cuda()
 
-    loss = 0
-
-    for i in range(epochs):
-        if i < 5:
-            optimizer = optimizer1
-        else:
-            optimizer = optimizer2
+    for epoch in range(epochs):
+        scheduler.step()
         epoch_loss = 0
-        print("Epoch: ", i, file=monitoring_file)
+
+        total_input, total_masks, total_lengths, total_lbls = \
+            permute_training_data(total_input, total_masks, total_lengths, total_lbls)
+
         for j in range(0, cdrs_train.shape[0], 32):
             interval = [x for x in range(j, min(cdrs_train.shape[0], j + 32))]
             interval = torch.LongTensor(interval)
             if use_cuda:
                 interval = interval.cuda()
-            input = index_select(total_input.data, 0, interval)
-            input = Variable(input, requires_grad=True)
-            masks = Variable(index_select(total_masks, 0, interval))
-            print("train - j", j, file=print_file)
 
-            #print("input shape", input.data.shape)
-            # print("lengths", lengths[j:j+32])
+            input = Variable(index_select(total_input, 0, interval), requires_grad=True)
+            masks = Variable(index_select(total_masks, 0, interval))
+            lengths = total_lengths[j:j + 32]
+            lbls = Variable(index_select(total_lbls, 0, interval))
+
+            input, masks, lengths, lbls = sort_batch(input, masks, lengths, lbls)
 
             unpacked_masks = masks
 
-            packed_input = pack_padded_sequence(masks, lengths_train[j:j + 32], batch_first=True)
+            packed_masks = pack_padded_sequence(masks, lengths, batch_first=True)
+            masks, _ = pad_packed_sequence(packed_masks, batch_first=True)
 
-            masks, _ = pad_packed_sequence(packed_input, batch_first=True)
-
-            output = model(input, unpacked_masks, masks, lengths_train[j:j + 32])
-            lbls = index_select(total_lbls, 0, interval)
-            #print("lbls before pack", lbls.shape)
-            lbls = Variable(lbls)
-
-            packed_input = pack_padded_sequence(lbls, lengths_train[j:j + 32], batch_first=True)
-
+            packed_input = pack_padded_sequence(lbls, lengths, batch_first=True)
             lbls, _ = pad_packed_sequence(packed_input, batch_first=True)
 
-            #print("lbls after pack", lbls.data.shape)
-            #loss = criterion(output, lbls)
-
-            #print("sigmoid(output)", F.sigmoid(output), file=print_file)
-            print("lbls", lbls, file=print_file)
-            print("output", output, file=print_file)
+            output = model(input, unpacked_masks, masks, lengths)
 
             loss_weights = (lbls * 1.5 + 1) * masks
             max_val = (-output).clamp(min=0)
             loss = loss_weights * (output - output * lbls + max_val + ((-max_val).exp() + (-output - max_val).exp()).log())
-            #loss = - (lbls*torch.log(output) + (1-lbls)*torch.log(1-output))
-            print("loss before sum", loss, file=print_file)
-
-            print("loss size", loss.data.shape, file=print_file)
-
-            print("masks", masks, file=print_file)
-            print("masks size", masks.data.shape, file=print_file)
-
-            #loss = loss * masks
-
-            print("loss after multi", loss, file=print_file)
-
             masks_added = masks.sum()
-
             loss = loss.sum() / masks_added
-            #loss = loss / masks_added
 
-
-            print("Batch: ", j, file=monitoring_file)
-            print("Loss: ", loss.data, file=monitoring_file)
-
+            #print("Epoch %d - Batch %d has loss %d " % (epoch, j, loss.data), file=monitoring_file)
             epoch_loss +=loss
             loss.backward()
-            optimizer.step()  # Does the update
-        print("Loss at the end of epoch: ", epoch_loss, file=monitoring_file)
+            optimizer.step()
+        print("Epoch %d - loss is %f : " % (epoch, epoch_loss.data[0]/16.0), file=monitoring_file)
 
     print("model.state_dict().keys()", model.state_dict().keys)
     torch.save(model.state_dict(), weights_template.format(weights_template_number))
 
     print("test", file=track_f)
+
+    cdrs_test, masks_test, lengths_test, lbls_test = sort_batch(cdrs_test, masks_test, lengths_test, lbls_test)
+
     unpacked_masks_test = masks_test
     packed_input = pack_padded_sequence(masks_test, lengths_test, batch_first=True)
     masks_test, _ = pad_packed_sequence(packed_input, batch_first=True)
+
     probs_test = model(cdrs_test, unpacked_masks_test, masks_test, lengths_test)
 
     return probs_test
@@ -145,7 +160,7 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
 
     for i, (train_idx, test_idx) in enumerate(kf.split(cdrs)):
         print("Fold: ", i + 1)
-        #print(train_idx)
+        #print(train_idx, )
         #print(test_idx)
 
         lengths_train = [lengths[i] for i in train_idx]
