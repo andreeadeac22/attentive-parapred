@@ -24,3 +24,5 @@ monitoring_file = open("monitor.txt", "w")
 indices_file = open("indices.txt", "w")
 
 sort_file = open("sort_file.txt", "w")
+
+attention_file = open("attention.txt", "w")
