@@ -240,5 +240,5 @@ def open_dataset(summary_file=data_frame, dataset_cache="processed-dataset.p"):
         print("Computing and storing the dataset...")
         dataset = process_dataset(summary_file)
         with open(dataset_cache, "wb") as f:
-            pickle.dump(dataset, f)
+            pickle.dump(dataset, f, protocol=2)
     return dataset

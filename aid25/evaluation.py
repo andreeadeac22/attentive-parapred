@@ -18,19 +18,14 @@ import pickle
 
 from model import *
 from constants import *
+from attention_RNN import *
 
 def sort_batch(cdrs, masks, lengths, lbls):
     order = np.argsort(lengths)
     order = order.tolist()
     order.reverse()
-
     lengths.sort(reverse=True)
-
-    print("flat_lengths", lengths, file=sort_file)
-    print("order", order, file=sort_file)
-
     index = Variable(torch.LongTensor(order))
-
     if use_cuda:
         index = index.cuda()
 
@@ -42,7 +37,6 @@ def sort_batch(cdrs, masks, lengths, lbls):
 
 def permute_training_data(cdrs, masks, lengths, lbls):
     index = torch.randperm(cdrs.shape[0])
-
     if use_cuda:
         index = index.cuda()
 
@@ -56,7 +50,6 @@ def permute_training_data(cdrs, masks, lengths, lbls):
 
 def simple_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_template, weights_template_number,
                cdrs_test, lbls_test, masks_test, lengths_test):
-    #print("simple run - weights_template", weights_template)
     print("simple run", file=print_file)
     model = AbSeqModel()
 
@@ -78,6 +71,7 @@ def simple_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_templ
     total_lengths = lengths_train
 
     if use_cuda:
+        print("using cuda")
         model.cuda()
         total_input = total_input.cuda()
         total_lbls = total_lbls.cuda()
@@ -111,8 +105,8 @@ def simple_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_templ
             packed_masks = pack_padded_sequence(masks, lengths, batch_first=True)
             masks, _ = pad_packed_sequence(packed_masks, batch_first=True)
 
-            packed_input = pack_padded_sequence(lbls, lengths, batch_first=True)
-            lbls, _ = pad_packed_sequence(packed_input, batch_first=True)
+            packed_lbls = pack_padded_sequence(lbls, lengths, batch_first=True)
+            lbls, _ = pad_packed_sequence(packed_lbls, batch_first=True)
 
             output = model(input, unpacked_masks, masks, lengths)
 
@@ -124,11 +118,13 @@ def simple_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_templ
 
             #print("Epoch %d - Batch %d has loss %d " % (epoch, j, loss.data), file=monitoring_file)
             epoch_loss +=loss
+
+            model.zero_grad()
+
             loss.backward()
             optimizer.step()
-        print("Epoch %d - loss is %f : " % (epoch, epoch_loss.data[0]/16.0), file=monitoring_file)
+        print("Epoch %d - loss is %f : " % (epoch, epoch_loss.data[0]), file=monitoring_file)
 
-    print("model.state_dict().keys()", model.state_dict().keys)
     torch.save(model.state_dict(), weights_template.format(weights_template_number))
 
     print("test", file=track_f)
@@ -141,7 +137,138 @@ def simple_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_templ
 
     probs_test = model(cdrs_test, unpacked_masks_test, masks_test, lengths_test)
 
-    return probs_test
+    #K.mean(K.equal(lbls_test, K.round(y_pred)), axis=-1)
+
+    sigmoid = nn.Sigmoid()
+    probs_test = sigmoid(probs_test)
+
+    return probs_test, lbls_test
+
+def attention_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_template, weights_template_number,
+               cdrs_test, lbls_test, masks_test, lengths_test):
+    print("attention run", file=print_file)
+    model = AttentionRNN(32, 512)
+
+    ignored_params = list(map(id, [model.conv1.weight, model.conv2.weight]))
+    base_params = filter(lambda p: id(p) not in ignored_params,
+                         model.parameters())
+
+    optimizer = optim.Adam([
+        {'params': base_params},
+        {'params': model.conv1.weight, 'weight_decay': 0.01},
+        {'params': model.conv2.weight, 'weight_decay': 0.01}
+    ], lr=0.01)
+
+    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[5], gamma=0.1)
+
+    total_input = cdrs_train
+    total_lbls = lbls_train
+    total_masks = masks_train
+    total_lengths = lengths_train
+
+    if use_cuda:
+        print("using cuda")
+        model.cuda()
+        total_input = total_input.cuda()
+        total_lbls = total_lbls.cuda()
+        total_masks = total_masks.cuda()
+        cdrs_test = cdrs_test.cuda()
+        lbls_test = lbls_test.cuda()
+        masks_test = masks_test.cuda()
+
+    for epoch in range(epochs):
+        scheduler.step()
+        epoch_loss = 0
+
+        total_input, total_masks, total_lengths, total_lbls = \
+            permute_training_data(total_input, total_masks, total_lengths, total_lbls)
+
+        for j in range(0, cdrs_train.shape[0], 32):
+            interval = [x for x in range(j, min(cdrs_train.shape[0], j + 32))]
+            interval = torch.LongTensor(interval)
+            if use_cuda:
+                interval = interval.cuda()
+
+            input = Variable(index_select(total_input, 0, interval), requires_grad=True)
+            masks = Variable(index_select(total_masks, 0, interval))
+            lengths = total_lengths[j:j + 32]
+            lbls = Variable(index_select(total_lbls, 0, interval))
+
+            input, masks, lengths, lbls = sort_batch(input, masks, lengths, lbls)
+
+            unpacked_masks = masks
+
+            packed_masks = pack_padded_sequence(masks, lengths, batch_first=True)
+            masks, _ = pad_packed_sequence(packed_masks, batch_first=True)
+
+            unpacked_lbls = lbls
+
+            packed_lbls = pack_padded_sequence(lbls, lengths, batch_first=True)
+            lbls, _ = pad_packed_sequence(packed_lbls, batch_first=True)
+
+            bias_mat = torch.FloatTensor(input.data.shape[0], MAX_CDR_LENGTH, input.data.shape[2])
+            bias_mat.fill_(-1e9)
+            #print("unpacked_masks.data.shape[0]", unpacked_masks.data.shape[0])
+            #print("unpacked_masks.data.shape[1]", unpacked_masks.data.shape[1])
+            for um_i in range(0, unpacked_masks.data.shape[0]):
+                for um_j in range(0, unpacked_masks.data.shape[1]):
+                    #print("unpacked_masks.data[um_i][um_j]", unpacked_masks.data[um_i][um_j])
+                    if( unpacked_masks.data[um_i][um_j].cpu().numpy() == 1):
+                        bias_mat[um_i, um_j, :] = 0
+            #bias_mat[:unpacked_masks.data.shape[0], :unpacked_masks.data.shape[1], :] = 0
+            bias_mat = Variable(bias_mat)
+            if use_cuda:
+                bias_mat = bias_mat.cuda()
+
+            output = model(input, unpacked_masks, bias_mat)
+
+            loss_weights = (unpacked_lbls * 1.5 + 1) * unpacked_masks
+            max_val = (-output).clamp(min=0)
+            loss = loss_weights * (output - output * unpacked_lbls + max_val + ((-max_val).exp() + (-output - max_val).exp()).log())
+            masks_added = masks.sum()
+            loss = loss.sum() / masks_added
+
+            #print("Epoch %d - Batch %d has loss %d " % (epoch, j, loss.data), file=monitoring_file)
+            epoch_loss +=loss
+
+            model.zero_grad()
+
+            loss.backward()
+            optimizer.step()
+        print("Epoch %d - loss is %f : " % (epoch, epoch_loss.data[0]), file=monitoring_file)
+
+    torch.save(model.state_dict(), weights_template.format(weights_template_number))
+
+    print("test", file=track_f)
+
+    cdrs_test, masks_test, lengths_test, lbls_test = sort_batch(cdrs_test, masks_test, lengths_test, lbls_test)
+
+    unpacked_masks_test = masks_test
+    packed_input = pack_padded_sequence(masks_test, lengths_test, batch_first=True)
+    masks_test, _ = pad_packed_sequence(packed_input, batch_first=True)
+
+    bias_mat = torch.FloatTensor(unpacked_masks_test.data.shape[0], MAX_CDR_LENGTH, unpacked_masks_test.data.shape[2])
+    bias_mat.fill_(-1e9)
+    # print("unpacked_masks.data.shape[0]", unpacked_masks.data.shape[0])
+    # print("unpacked_masks.data.shape[1]", unpacked_masks.data.shape[1])
+    for um_i in range(0, unpacked_masks_test.data.shape[0]):
+        for um_j in range(0, unpacked_masks_test.data.shape[1]):
+            # print("unpacked_masks.data[um_i][um_j]", unpacked_masks.data[um_i][um_j])
+            if (unpacked_masks_test.data[um_i][um_j].cpu().numpy() == 1):
+                bias_mat[um_i, um_j, :] = 0
+    # bias_mat[:unpacked_masks.data.shape[0], :unpacked_masks.data.shape[1], :] = 0
+    bias_mat = Variable(bias_mat)
+    if use_cuda:
+        bias_mat = bias_mat.cuda()
+
+    probs_test = model(cdrs_test, unpacked_masks_test, bias_mat)
+
+    #K.mean(K.equal(lbls_test, K.round(y_pred)), axis=-1)
+
+    sigmoid = nn.Sigmoid()
+    probs_test = sigmoid(probs_test)
+
+    return probs_test, lbls_test
 
 def kfold_cv_eval(dataset, output_file="crossval-data.p",
                   weights_template="weights-fold-{}.h5", seed=0):
@@ -177,8 +304,11 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
         lbls_test = Variable(index_select(lbls, 0, test_idx))
         mask_test = Variable(index_select(masks, 0, test_idx))
 
-        probs_test = simple_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
-                                cdrs_test, lbls_test, mask_test, lengths_test)
+        # probs_test, lbls_test = simple_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
+        #                        cdrs_test, lbls_test, mask_test, lengths_test)
+
+        probs_test, lbls_test = attention_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
+                              cdrs_test, lbls_test, mask_test, lengths_test)
         print("test", file=track_f)
 
         print("probs_test", probs_test, file=track_f)
@@ -273,14 +403,6 @@ def open_crossval_results(folder="cv-ab-seq", num_results=NUM_ITERATIONS,
             prob_mat = prob_mat.data.cpu().numpy()
             mask_mat = mask_mat.data.cpu().numpy()
 
-            print("new lbl_mat", lbl_mat, file=print_file)
-            print("new prob_mat", prob_mat, file=print_file)
-            print("mask_mat", mask_mat, file=print_file)
-
-            print("new lbl_mat.shape", lbl_mat.shape, file=print_file)
-            print("new prob_mat.shape", prob_mat.shape, file=print_file)
-            print("new mask_mat.shape", mask_mat.shape, file=print_file)
-
         # Get entries corresponding to the given loop
         if loop_filter is not None:
             lbl_mat = lbl_mat[loop_filter::6]
@@ -294,7 +416,6 @@ def open_crossval_results(folder="cv-ab-seq", num_results=NUM_ITERATIONS,
 
         # Discard sequence padding
         seq_lens = np.sum(np.squeeze(mask_mat), axis=1)
-        print("seq_lens", seq_lens, file=print_file)
         seq_lens = seq_lens.astype(int)
 
         p = flatten_with_lengths(prob_mat, seq_lens)

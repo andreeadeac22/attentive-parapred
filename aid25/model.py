@@ -42,7 +42,7 @@ class AbSeqModel(nn.Module):
         initial = input
         x = input
 
-        #print("initial x", x.data, file=track_f)
+        #print("initial x", x.data, file=track_f) #32x32x28
 
         x = torch.transpose(x, 1, 2)
 
@@ -88,7 +88,7 @@ class AbSeqModel(nn.Module):
         packed_input = pack_padded_sequence(x, lengths, batch_first=True)
         output, hidden = self.bidir_lstm(packed_input)
         x, _ = pad_packed_sequence(output, batch_first = True)
-        print("after lstm", x.data, file=print_file)
+        print("after lstm", x.data, file=print_file) #32x32x512
 
         #Dropout
         x = self.dropout2(x)
@@ -104,7 +104,7 @@ class AbSeqModel(nn.Module):
 
         x = torch.transpose(x, 1, 2)
 
-        print("after conv2", x.data, file=print_file)
+        print("after conv2", x.data, file=print_file) #32x32x1
         #print("after sigmoid", x.data, file=print_file)
 
         x = torch.mul(x, masks)

@@ -9,7 +9,7 @@ chothia_cdr_def = { "L1" : (24, 34), "L2" : (50, 56), "L3" : (89, 97),
 cdr_names = ["H1", "H2", "H3", "L1", "L2", "L3"]
 
 NUM_ITERATIONS = 1
-NUM_SPLIT = 10
+NUM_SPLIT = 3
 
 epochs = 16
 
