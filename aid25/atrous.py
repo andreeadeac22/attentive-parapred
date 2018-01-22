@@ -10,14 +10,13 @@ from constants import *
 class DilatedConv(nn.Module):
     def __init__(self):
         super(DilatedConv, self).__init__()
-        features_num = 128
-        self.conv1 = nn.Conv1d(28, features_num, 3, padding=1)
-        self.conv2 = nn.Conv1d(features_num, features_num, 3, padding=2, dilation=2)
-        self.conv3 = nn.Conv1d(features_num, features_num, 3, padding=4, dilation=4)
-        self.conv4 = nn.Conv1d(features_num, features_num, 3, padding=8, dilation=8)
-        self.conv5 = nn.Conv1d(features_num, features_num, 3, padding=16, dilation=16)
+        self.conv1 = nn.Conv1d(28, 32, 3, padding=1)
+        self.conv2 = nn.Conv1d(32, 64, 3, padding=2, dilation=2)
+        self.conv3 = nn.Conv1d(64, 128, 3, padding=4, dilation=4)
+        self.conv4 = nn.Conv1d(128, 256, 3, padding=8, dilation=8)
+        self.conv5 = nn.Conv1d(256, 512, 3, padding=16, dilation=16)
         self.elu = nn.ELU()
-        self.fc = nn.Linear(features_num, 1)
+        self.fc = nn.Linear(512, 1)
 
         for m in self.modules():
             self.weights_init(m)
