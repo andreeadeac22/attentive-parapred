@@ -19,7 +19,7 @@ import pickle
 from model import *
 from constants import *
 from attention_RNN import *
-from dilated_conv import *
+from atrous import *
 
 def sort_batch(cdrs, masks, lengths, lbls):
     order = np.argsort(lengths)
@@ -277,14 +277,13 @@ def atrous_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_templ
     print("dilated run", file=print_file)
     model = DilatedConv()
 
-    ignored_params = list(map(id, [model.conv1.weight, model.conv2.weight]))
+    ignored_params = list(map(id, [model.conv1.weight]))
     base_params = filter(lambda p: id(p) not in ignored_params,
                          model.parameters())
 
     optimizer = optim.Adam([
         {'params': base_params},
         {'params': model.conv1.weight, 'weight_decay': 0.01},
-        {'params': model.conv2.weight, 'weight_decay': 0.01}
     ], lr=0.01)
 
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[5], gamma=0.1)
