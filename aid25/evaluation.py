@@ -54,6 +54,8 @@ def simple_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_templ
     print("simple run", file=print_file)
     model = AbSeqModel()
 
+    model.train()
+
     ignored_params = list(map(id, [model.conv1.weight, model.conv2.weight]))
     base_params = filter(lambda p: id(p) not in ignored_params,
                          model.parameters())
@@ -129,6 +131,8 @@ def simple_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_templ
     torch.save(model.state_dict(), weights_template.format(weights_template_number))
 
     print("test", file=track_f)
+
+    model.eval()
 
     cdrs_test, masks_test, lengths_test, lbls_test = sort_batch(cdrs_test, masks_test, lengths_test, lbls_test)
 
@@ -402,15 +406,15 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
         lbls_test = Variable(index_select(lbls, 0, test_idx))
         mask_test = Variable(index_select(masks, 0, test_idx))
 
-        # probs_test, lbls_test = simple_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
-        #                        cdrs_test, lbls_test, mask_test, lengths_test)
+        probs_test, lbls_test = simple_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
+                                cdrs_test, lbls_test, mask_test, lengths_test)
 
         #probs_test, lbls_test = attention_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
         #                      cdrs_test, lbls_test, mask_test, lengths_test)
 
 
-        probs_test, lbls_test = atrous_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
-                                 cdrs_test, lbls_test, mask_test, lengths_test)
+        #probs_test, lbls_test = atrous_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
+        #                         cdrs_test, lbls_test, mask_test, lengths_test)
 
         print("test", file=track_f)
 
