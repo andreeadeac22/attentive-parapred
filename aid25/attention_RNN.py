@@ -45,6 +45,9 @@ class AttentionRNN(nn.Module):
                     start, end = n // 4, n // 2
                     bias.data[start:end].fill_(1.0)
             m.bias_ih.data.fill_(0.0)
+        if isinstance(m, nn.Linear):
+            torch.nn.init.xavier_uniform(m.weight.data)
+            m.bias.data.fill_(0.0)
 
 
     def forward(self, input, unpacked_masks, bias_mat):
@@ -71,8 +74,6 @@ class AttentionRNN(nn.Module):
         x = torch.transpose(x, 1, 2)
         u_a = self.conv(x)
         u_a = torch.transpose(u_a, 1, 2)
-        u_a = torch.mul(u_a, unpacked_masks)
-        u_a = self.elu(u_a)
 
         x = torch.transpose(x, 1, 2)
 
@@ -152,7 +153,6 @@ class AttentionRNN(nn.Module):
         x = self.conv2(x)
         x = torch.transpose(x, 1, 2)
         x = torch.mul(x, unpacked_masks)
-        x = self.elu(x)
 
         print("x at the end", x.data, file=attention_file)
 
