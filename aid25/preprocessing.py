@@ -21,7 +21,7 @@ CSV_NAME = 'sabdab_27_jun_95_90.csv'
 data_frame = pd.read_csv(DATA_DIRECTORY + CSV_NAME)
 
 aa_s = "CSTPAGNDEQHRKMILVFYWU" # U for unknown
-NUM_FEATURES = len(aa_s) + 7 # one-hot + extra features
+NUM_FEATURES = len(aa_s) + 7 + 6 # one-hot + extra features + chain one-hot
 
 NUM_EXTRA_RESIDUES = 2 # The number of extra residues to include on the either side of a CDR
 CONTACT_DISTANCE = 4.5 # Contact distance between atoms in Angstroms
@@ -100,16 +100,42 @@ def to_categorical(y, num_classes):
     return categorical
 
 
-def seq_to_one_hot(res_seq_one):
+def seq_to_one_hot(res_seq_one, chain_encoding):
+    print(chain_encoding)
+    print(type(chain_encoding))
     ints = one_to_number(res_seq_one)
     if(len(ints) > 0):
         new_ints = torch.LongTensor(ints)
         feats = torch.Tensor(aa_features()[new_ints])
         onehot = to_categorical(ints, num_classes=len(aa_s))
+        chain_encoding = torch.Tensor(chain_encoding)
+        chain_encoding = chain_encoding.expand(onehot.shape[0], 6)
         concatenated = torch.cat((onehot, feats), 1)
-        return torch.cat((onehot, feats), 1)
+        return torch.cat((onehot, feats, chain_encoding), 1)
     else:
         return torch.zeros(1, NUM_FEATURES)
+
+def find_chain(cdr_name):
+    if cdr_name == "H1":
+        print("H1")
+        return [1, 0, 0, 0, 0, 0,]
+    if cdr_name == "H2":
+        print("H2")
+        return [0, 1, 0, 0, 0, 0]
+    if cdr_name == "H3":
+        print("H3")
+        return [0, 0, 1, 0, 0, 0]
+    if cdr_name == "L1":
+        print("L1")
+        return [0, 0, 0, 1, 0, 0]
+    if cdr_name == "L2":
+        print("L2")
+        return [0, 0, 0, 0, 1, 0]
+    if cdr_name == "L3":
+        print("L3")
+        return [0, 0, 0, 0, 0, 1]
+
+
 
 def process_chains(ag_search, cdrs, max_cdr_length):
     num_residues = 0
@@ -136,7 +162,9 @@ def process_chains(ag_search, cdrs, max_cdr_length):
         # Converting residues to amino acid sequences
         print("cdr_chain", cdr_chain, file=f)
         cdr_chain = residue_seq_to_one(cdrs[cdr_name])
-        cdr_mat = seq_to_one_hot(cdr_chain)
+        chain_encoding = find_chain(cdr_name)
+        cdr_mat = seq_to_one_hot(cdr_chain, chain_encoding)
+        #print("cdr_mat", cdr_mat)
         cdr_mat_pad = torch.zeros(max_cdr_length, NUM_FEATURES)
         cdr_mat_pad[:cdr_mat.shape[0], :] = cdr_mat
         cdr_mats.append(cdr_mat_pad)

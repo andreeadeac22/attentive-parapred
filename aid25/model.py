@@ -12,10 +12,9 @@ class AbSeqModel(nn.Module):
     def __init__(self):
         super(AbSeqModel, self).__init__()
         # kernel
-        self.conv1 = nn.Conv1d(28, 28, 3, padding = 1)
+        self.conv1 = nn.Conv1d(NUM_FEATURES, NUM_FEATURES, 3, padding = 1)
         self.elu = nn.ELU()
-        self.dropout1 = nn.Dropout(0.15)
-        self.bidir_lstm = nn.LSTM(28, 256, bidirectional = True, dropout=0.15)
+        self.bidir_lstm = nn.LSTM(NUM_FEATURES, 256, bidirectional = True, dropout=0.15)
         self.dropout2 = nn.Dropout(0.3)
         self.conv2 = nn.Conv1d(512, 1, 1)
 
@@ -67,10 +66,7 @@ class AbSeqModel(nn.Module):
 
         # multiply x with the mask
 
-        #x = self.dropout1(x)
-
         #Add residual connections
-        #print("after dropout", x.data, file=print_file)
         #print("initial", initial.data.shape)
         x = x + initial
 
