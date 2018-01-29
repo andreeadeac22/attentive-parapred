@@ -28,6 +28,7 @@ class AttentionRNN(nn.Module):
 
         self.fc1 = nn.Linear(hidden_size, 1)
 
+
         for m in self.modules():
             self.weights_init(m)
 
@@ -112,8 +113,12 @@ class AttentionRNN(nn.Module):
             #print("after leaky", attn_weights, file=attention_file)
 
             bias_mat = bias_mat.view(attn_weights.data.shape[0], x.data.shape[1], 1)
+
             attn_weights = attn_weights + bias_mat
-            attn_weights = F.softmax(attn_weights) # attn_weights is batch, time, 1
+
+            print("attn_weights before softmax", attn_weights.data, file=attention_file)
+
+            attn_weights = F.softmax(attn_weights, dim=0) # attn_weights is batch, time, 1
 
             print("attn_weights after softmax", attn_weights.data, file=attention_file)
 

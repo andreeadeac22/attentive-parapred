@@ -54,8 +54,6 @@ def simple_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_templ
     print("simple run", file=print_file)
     model = AbSeqModel()
 
-    model.train()
-
     ignored_params = list(map(id, [model.conv1.weight, model.conv2.weight]))
     base_params = filter(lambda p: id(p) not in ignored_params,
                          model.parameters())
@@ -83,14 +81,22 @@ def simple_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_templ
         lbls_test = lbls_test.cuda()
         masks_test = masks_test.cuda()
 
+    # batch size: increase for speed
+
+
     for epoch in range(epochs):
+        model.train(True)
+
         scheduler.step()
         epoch_loss = 0
+
+        batches_done =0
 
         total_input, total_masks, total_lengths, total_lbls = \
             permute_training_data(total_input, total_masks, total_lengths, total_lbls)
 
         for j in range(0, cdrs_train.shape[0], 32):
+            batches_done+=1
             interval = [x for x in range(j, min(cdrs_train.shape[0], j + 32))]
             interval = torch.LongTensor(interval)
             if use_cuda:
@@ -126,7 +132,55 @@ def simple_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_templ
 
             loss.backward()
             optimizer.step()
-        print("Epoch %d - loss is %f : " % (epoch, epoch_loss.data[0]), file=monitoring_file)
+        print("Epoch %d - loss is %f : " % (epoch, epoch_loss.data[0]/batches_done), file=monitoring_file)
+
+        model.eval()
+
+        cdrs_test1, masks_test1, lengths_test1, lbls_test1 = sort_batch(cdrs_test, masks_test, list(lengths_test), lbls_test)
+
+        unpacked_masks_test1 = masks_test1
+        packed_input1 = pack_padded_sequence(masks_test1, lengths_test1, batch_first=True)
+        masks_test1, _ = pad_packed_sequence(packed_input1, batch_first=True)
+
+        probs_test1 = model(cdrs_test1, unpacked_masks_test1, masks_test1, lengths_test1)
+
+        # K.mean(K.equal(lbls_test, K.round(y_pred)), axis=-1)
+
+        sigmoid = nn.Sigmoid()
+        probs_test2 = sigmoid(probs_test1)
+        probs_test3 = sigmoid(probs_test1)*masks_test1
+
+        """""
+        for i in range(probs_test3.data.shape[0]):
+            if(probs_test2[i] != probs_test3):
+                print("They are different")
+                print("masks_test", masks_test1)
+                print("lengths", lengths_test1)
+         """
+
+
+        # multiplying with masks helps???
+        # problem with masks, lengths or flatten?
+
+
+        # Mask is 0 for chains with 1 residue - TODO 
+
+        probs_test2 = probs_test2.data.cpu().numpy().astype('float32')
+        probs_test3 = probs_test3.data.cpu().numpy().astype('float32')
+        lbls_test1 = lbls_test1.data.cpu().numpy().astype('int32')
+
+        probs_test2 = flatten_with_lengths(probs_test2, lengths_test1)
+        probs_test3 = flatten_with_lengths(probs_test3, lengths_test1)
+
+        lbls_test1 = flatten_with_lengths(lbls_test1, lengths_test1)
+
+
+        print("Roc", roc_auc_score(lbls_test1, probs_test2))
+        print("Roc with masks", roc_auc_score(lbls_test1, probs_test3))
+
+
+
+
 
     torch.save(model.state_dict(), weights_template.format(weights_template_number))
 
@@ -134,7 +188,7 @@ def simple_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_templ
 
     model.eval()
 
-    cdrs_test, masks_test, lengths_test, lbls_test = sort_batch(cdrs_test, masks_test, lengths_test, lbls_test)
+    cdrs_test, masks_test, lengths_test, lbls_test = sort_batch(cdrs_test, masks_test, list(lengths_test), lbls_test)
 
     unpacked_masks_test = masks_test
     packed_input = pack_padded_sequence(masks_test, lengths_test, batch_first=True)
@@ -412,11 +466,11 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
         lbls_test = Variable(index_select(lbls, 0, test_idx))
         mask_test = Variable(index_select(masks, 0, test_idx))
 
-        #probs_test, lbls_test = simple_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
-        #                        cdrs_test, lbls_test, mask_test, lengths_test)
+        probs_test, lbls_test = simple_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
+                                cdrs_test, lbls_test, mask_test, lengths_test)
 
-        probs_test, lbls_test = attention_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
-                              cdrs_test, lbls_test, mask_test, lengths_test)
+        #probs_test, lbls_test = attention_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
+        #                      cdrs_test, lbls_test, mask_test, lengths_test)
 
 
         #probs_test, lbls_test = atrous_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
