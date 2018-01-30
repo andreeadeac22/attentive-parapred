@@ -9,9 +9,8 @@ from constants import *
 from preprocessing import NUM_FEATURES
 
 class AttentionRNN(nn.Module):
-    def __init__(self, input_size, hidden_size):
+    def __init__(self, hidden_size):
         super(AttentionRNN, self).__init__()
-        self.input_size = input_size
         self.hidden_size = hidden_size
 
         self.conv1 = nn.Conv1d(NUM_FEATURES, NUM_FEATURES, 3, padding=1)

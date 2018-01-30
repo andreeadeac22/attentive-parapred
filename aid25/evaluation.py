@@ -31,6 +31,9 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
     all_probs = []
     all_masks = []
 
+    all_probs1 = []
+    all_lbls1 = []
+
     for i, (train_idx, test_idx) in enumerate(kf.split(cdrs)):
         print("Fold: ", i + 1)
         #print(train_idx, )
@@ -64,12 +67,15 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
         print("probs_test", probs_test, file=track_f)
 
         all_lbls.append(lbls_test)
+        #all_lbls1.append(lbls_test1)
 
         probs_test_pad = torch.zeros(probs_test.data.shape[0], MAX_CDR_LENGTH, probs_test.data.shape[2])
         probs_test_pad[:probs_test.data.shape[0], :probs_test.data.shape[1], :] = probs_test.data
         probs_test_pad = Variable(probs_test_pad)
 
         all_probs.append(probs_test_pad)
+        #all_probs1.append(probs_test1)
+
         all_masks.append(mask_test)
 
     lbl_mat = torch.cat(all_lbls)
@@ -78,13 +84,6 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
 
     with open(output_file, "wb") as f:
         pickle.dump((lbl_mat, prob_mat, mask_mat), f)
-
-def flatten_with_lengths(matrix, lengths):
-    seqs = []
-    for i, example in enumerate(matrix):
-        seq = example[:lengths[i]]
-        seqs.append(seq)
-    return np.concatenate(seqs)
 
 def compute_classifier_metrics(labels, probs, threshold=0.5):
     matrices = []

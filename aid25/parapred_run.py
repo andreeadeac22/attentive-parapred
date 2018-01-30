@@ -9,6 +9,7 @@ import torch.optim as optim
 from torch.optim import lr_scheduler
 from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence
 from torch import index_select
+from sklearn.metrics import confusion_matrix, roc_auc_score, matthews_corrcoef
 
 from model import *
 from constants import *
@@ -60,16 +61,16 @@ def simple_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_templ
         total_input, total_masks, total_lengths, total_lbls = \
             permute_training_data(total_input, total_masks, total_lengths, total_lbls)
 
-        for j in range(0, cdrs_train.shape[0], 32):
+        for j in range(0, cdrs_train.shape[0], batch_size):
             batches_done+=1
-            interval = [x for x in range(j, min(cdrs_train.shape[0], j + 32))]
+            interval = [x for x in range(j, min(cdrs_train.shape[0], j + batch_size))]
             interval = torch.LongTensor(interval)
             if use_cuda:
                 interval = interval.cuda()
 
             input = Variable(index_select(total_input, 0, interval), requires_grad=True)
             masks = Variable(index_select(total_masks, 0, interval))
-            lengths = total_lengths[j:j + 32]
+            lengths = total_lengths[j:j + batch_size]
             lbls = Variable(index_select(total_lbls, 0, interval))
 
             input, masks, lengths, lbls = sort_batch(input, masks, lengths, lbls)
@@ -115,19 +116,6 @@ def simple_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_templ
         probs_test2 = sigmoid(probs_test1)
         probs_test3 = sigmoid(probs_test1)*masks_test1
 
-        """""
-        for i in range(probs_test3.data.shape[0]):
-            if(probs_test2[i] != probs_test3):
-                print("They are different")
-                print("masks_test", masks_test1)
-                print("lengths", lengths_test1)
-         """
-
-
-        # multiplying with masks helps???
-        # problem with masks, lengths or flatten?
-
-
         # Mask is 0 for chains with 1 residue - TODO
 
         probs_test2 = probs_test2.data.cpu().numpy().astype('float32')
@@ -142,8 +130,6 @@ def simple_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_templ
 
         print("Roc", roc_auc_score(lbls_test1, probs_test2))
         print("Roc with masks", roc_auc_score(lbls_test1, probs_test3))
-
-
 
 
 
@@ -166,4 +152,4 @@ def simple_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_templ
     sigmoid = nn.Sigmoid()
     probs_test = sigmoid(probs_test)
 
-    return probs_test, lbls_test, probs_test2, lbls_test1 # get them in kfold, append, concatenate do roc on them
+    return probs_test, lbls_test  #, probs_test2, lbls_test1 # get them in kfold, append, concatenate do roc on them

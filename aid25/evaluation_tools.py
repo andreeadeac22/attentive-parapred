@@ -33,3 +33,10 @@ def permute_training_data(cdrs, masks, lengths, lbls):
     lengths = [lengths[i] for i in index]
 
     return cdrs, masks, lengths, lbls
+
+def flatten_with_lengths(matrix, lengths):
+    seqs = []
+    for i, example in enumerate(matrix):
+        seq = example[:lengths[i]]
+        seqs.append(seq)
+    return np.concatenate(seqs)

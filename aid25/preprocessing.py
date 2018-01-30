@@ -101,8 +101,6 @@ def to_categorical(y, num_classes):
 
 
 def seq_to_one_hot(res_seq_one, chain_encoding):
-    print(chain_encoding)
-    print(type(chain_encoding))
     ints = one_to_number(res_seq_one)
     if(len(ints) > 0):
         new_ints = torch.LongTensor(ints)
@@ -113,7 +111,7 @@ def seq_to_one_hot(res_seq_one, chain_encoding):
         concatenated = torch.cat((onehot, feats), 1)
         return torch.cat((onehot, feats, chain_encoding), 1)
     else:
-        return torch.zeros(1, NUM_FEATURES)
+        return None
 
 def find_chain(cdr_name):
     if cdr_name == "H1":
@@ -160,30 +158,45 @@ def process_chains(ag_search, cdrs, max_cdr_length):
     lengths = []
     for cdr_name in ["H1", "H2", "H3", "L1", "L2", "L3"]:
         # Converting residues to amino acid sequences
-        print("cdr_chain", cdr_chain, file=f)
         cdr_chain = residue_seq_to_one(cdrs[cdr_name])
         chain_encoding = find_chain(cdr_name)
         cdr_mat = seq_to_one_hot(cdr_chain, chain_encoding)
-        #print("cdr_mat", cdr_mat)
         cdr_mat_pad = torch.zeros(max_cdr_length, NUM_FEATURES)
-        cdr_mat_pad[:cdr_mat.shape[0], :] = cdr_mat
-        cdr_mats.append(cdr_mat_pad)
-        print("length", cdr_mat.shape[0], file=f)
-        lengths.append(cdr_mat.shape[0])
 
-        if len(contact[cdr_name]) > 0:
-            cont_mat = torch.FloatTensor(contact[cdr_name])
-            cont_mat_pad = torch.zeros(max_cdr_length, 1)
-            cont_mat_pad[:cont_mat.shape[0], 0] = cont_mat
+        if cdr_mat is not None:
+            #print("cdr_mat", cdr_mat)
+            cdr_mat_pad[:cdr_mat.shape[0], :] = cdr_mat
+            cdr_mats.append(cdr_mat_pad)
+            print("length", cdr_mat.shape[0], file=f)
+            lengths.append(cdr_mat.shape[0])
+
+            if len(contact[cdr_name]) > 0:
+                cont_mat = torch.FloatTensor(contact[cdr_name])
+                cont_mat_pad = torch.zeros(max_cdr_length, 1)
+                cont_mat_pad[:cont_mat.shape[0], 0] = cont_mat
+            else:
+                cont_mat_pad = torch.zeros(max_cdr_length, 1)
+            cont_mats.append(cont_mat_pad)
+
+            cdr_mask = torch.zeros(max_cdr_length, 1)
+            if len(cdr_chain) > 0:
+                cdr_mask[:len(cdr_chain), 0] = 1
+            cdr_masks.append(cdr_mask)
         else:
-            cont_mat_pad = torch.zeros(max_cdr_length, 1)
-        cont_mats.append(cont_mat_pad)
+            print("is None")
+            print("contact[cdr_name]", contact[cdr_name])
+            print("cdrs[cdr_name]", cdrs[cdr_name])
+            #cdr_mats.append(cdr_mat_pad)
+            #lengths.append(0)
 
-        cdr_mask = torch.zeros(max_cdr_length, 1)
-        if len(cdr_chain) > 0:
-            cdr_mask[:len(cdr_chain), 0] = 1
-        cdr_masks.append(cdr_mask)
-        print("cdr_mask", cdr_mask, file=f)
+        if cdr_mat is not None and cdr_mat.shape[0] == 1:
+            print("Length is 1")
+            print("cdr_mat", cdr_mat)
+            print("cdrs[cdr_name]", cdrs[cdr_name])
+            print("residue_seq_to_one(cdrs[cdr_name])", residue_seq_to_one(cdrs[cdr_name]))
+            print("seq_to_one_hot(cdr_chain, chain_encoding)", seq_to_one_hot(cdr_chain, chain_encoding))
+            print("len(cdr_chain", len(cdr_chain))
+            print(cdr_mask)
 
     cdrs = torch.stack(cdr_mats)
     lbls = torch.stack(cont_mats)
