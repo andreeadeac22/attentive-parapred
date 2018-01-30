@@ -16,7 +16,6 @@ class AbSeqModel(nn.Module):
         self.elu = nn.ELU()
         self.dropout1 = nn.Dropout(0.15)
         self.bidir_lstm = nn.LSTM(NUM_FEATURES, 256, bidirectional = True)
-        # Dropout in lstm only applies to *hidden* layer, should apply layer before instead
         self.dropout2 = nn.Dropout(0.3)
         self.conv2 = nn.Conv1d(512, 1, 1)
 
