@@ -27,8 +27,8 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
 
     kf = KFold(n_splits=NUM_SPLIT, random_state=seed, shuffle=True)
 
-    all_lbls = []
-    all_probs = []
+    all_lbls2 = []
+    all_probs2 = []
     all_masks = []
 
     all_probs1 = []
@@ -53,7 +53,7 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
         lbls_test = Variable(index_select(lbls, 0, test_idx))
         mask_test = Variable(index_select(masks, 0, test_idx))
 
-        probs_test, lbls_test = simple_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
+        probs_test1, lbls_test1, probs_test2, lbls_test2 = simple_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
                                 cdrs_test, lbls_test, mask_test, lengths_test)
 
         #probs_test, lbls_test = attention_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
@@ -64,34 +64,48 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
 
         print("test", file=track_f)
 
-        print("probs_test", probs_test, file=track_f)
+        #print("probs_test", probs_test)
 
-        all_lbls.append(lbls_test)
-        #all_lbls1.append(lbls_test1)
+        lbls_test2 = np.squeeze(lbls_test2)
+        all_lbls2 = np.concatenate((all_lbls2, lbls_test2))
+        all_lbls1.append(lbls_test1)
 
-        probs_test_pad = torch.zeros(probs_test.data.shape[0], MAX_CDR_LENGTH, probs_test.data.shape[2])
-        probs_test_pad[:probs_test.data.shape[0], :probs_test.data.shape[1], :] = probs_test.data
+        probs_test_pad = torch.zeros(probs_test1.data.shape[0], MAX_CDR_LENGTH, probs_test1.data.shape[2])
+        probs_test_pad[:probs_test1.data.shape[0], :probs_test1.data.shape[1], :] = probs_test1.data
         probs_test_pad = Variable(probs_test_pad)
 
-        all_probs.append(probs_test_pad)
-        #all_probs1.append(probs_test1)
+        probs_test2 = np.squeeze(probs_test2)
+        #print(probs_test)
+        all_probs2 = np.concatenate((all_probs2, probs_test2))
+        #print(all_probs)
+        #print(type(all_probs))
+
+        all_probs1.append(probs_test_pad)
 
         all_masks.append(mask_test)
 
-    lbl_mat = torch.cat(all_lbls)
-    prob_mat = torch.cat(all_probs)
+    lbl_mat1 = torch.cat(all_lbls1)
+    prob_mat1 = torch.cat(all_probs1)
+    #print("end", all_probs)
     mask_mat = torch.cat(all_masks)
 
     with open(output_file, "wb") as f:
-        pickle.dump((lbl_mat, prob_mat, mask_mat), f)
+        pickle.dump((lbl_mat1, prob_mat1, mask_mat, all_lbls2, all_probs2), f)
 
-def compute_classifier_metrics(labels, probs, threshold=0.5):
+def compute_classifier_metrics(labels, probs, labels1, probs1, threshold=0.5):
     matrices = []
     aucs = []
     mcorrs = []
 
+    #print("labels", labels)
+    #print("probs", probs)
+
+    aucs.append(roc_auc_score(labels1, probs1))
+
     for l, p in zip(labels, probs):
-        aucs.append(roc_auc_score(l, p))
+        #print("l", l)
+        #print("p", p)
+        #aucs.append(roc_auc_score(l, p))
         l_pred = (p > threshold).astype(int)
         matrices.append(confusion_matrix(l, l_pred))
         mcorrs.append(matthews_corrcoef(l, l_pred))
@@ -143,10 +157,13 @@ def open_crossval_results(folder="cv-ab-seq", num_results=NUM_ITERATIONS,
     class_probabilities = []
     labels = []
 
+    class_probabilities1 = []
+    labels1 = []
+
     for r in range(num_results):
         result_filename = "{}/run-{}.p".format(folder, r)
         with open(result_filename, "rb") as f:
-            lbl_mat, prob_mat, mask_mat = pickle.load(f)
+            lbl_mat, prob_mat, mask_mat, all_lbls, all_probs = pickle.load(f)
 
             lbl_mat = lbl_mat.data.cpu().numpy()
             prob_mat = prob_mat.data.cpu().numpy()
@@ -158,10 +175,12 @@ def open_crossval_results(folder="cv-ab-seq", num_results=NUM_ITERATIONS,
             prob_mat = prob_mat[loop_filter::6]
             mask_mat = mask_mat[loop_filter::6]
 
+        """""
         if not flatten_by_lengths:
             class_probabilities.append(prob_mat)
             labels.append(lbl_mat)
             continue
+        """
 
         # Discard sequence padding
         seq_lens = np.sum(np.squeeze(mask_mat), axis=1)
@@ -173,5 +192,8 @@ def open_crossval_results(folder="cv-ab-seq", num_results=NUM_ITERATIONS,
         class_probabilities.append(p)
         labels.append(l)
 
-    return labels, class_probabilities
+        class_probabilities1 = np.concatenate((class_probabilities1, all_probs))
+        labels1 = np.concatenate((labels1,all_lbls))
+
+    return labels, class_probabilities, labels1, class_probabilities1
 
