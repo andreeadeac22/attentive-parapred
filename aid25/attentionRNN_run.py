@@ -9,6 +9,7 @@ import torch.optim as optim
 from torch.optim import lr_scheduler
 from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence
 from torch import index_select
+from sklearn.metrics import confusion_matrix, roc_auc_score, matthews_corrcoef
 
 from attention_RNN import *
 from constants import *
@@ -110,7 +111,7 @@ def attention_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_te
 
             loss.backward()
             optimizer.step()
-        print("Epoch %d - loss is %f : " % (epoch, epoch_loss.data[0]/batches_done), file=monitoring_file)
+        print("Epoch %d - loss is %f : " % (epoch, epoch_loss.data[0]/batches_done))
 
         model.eval()
 
@@ -137,39 +138,18 @@ def attention_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_te
 
         probs_test1 = model(cdrs_test1, unpacked_masks_test1, bias_mat1)
 
-        # K.mean(K.equal(lbls_test, K.round(y_pred)), axis=-1)
-
         sigmoid = nn.Sigmoid()
         probs_test2 = sigmoid(probs_test1)
-        probs_test3 = sigmoid(probs_test1) * unpacked_masks_test1
-
-        # K.mean(K.equal(lbls_test, K.round(y_pred)), axis=-1
-
-        """""
-        for i in range(probs_test3.data.shape[0]):
-            if(probs_test2[i] != probs_test3):
-                print("They are different")
-                print("masks_test", masks_test1)
-                print("lengths", lengths_test1)
-         """
-
-        # multiplying with masks helps???
-        # problem with masks, lengths or flatten?
-
-
-        # Mask is 0 for chains with 1 residue - TODO
 
         probs_test2 = probs_test2.data.cpu().numpy().astype('float32')
-        probs_test3 = probs_test3.data.cpu().numpy().astype('float32')
         lbls_test1 = lbls_test1.data.cpu().numpy().astype('int32')
 
         probs_test2 = flatten_with_lengths(probs_test2, lengths_test1)
-        probs_test3 = flatten_with_lengths(probs_test3, lengths_test1)
 
         lbls_test1 = flatten_with_lengths(lbls_test1, lengths_test1)
 
         print("Roc", roc_auc_score(lbls_test1, probs_test2))
-        print("Roc with masks", roc_auc_score(lbls_test1, probs_test3))
+        print("Accuracy", np.mean(np.equal(lbls_test1, np.round(probs_test2))))
 
     torch.save(model.state_dict(), weights_template.format(weights_template_number))
 
@@ -199,9 +179,23 @@ def attention_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_te
 
     probs_test = model(cdrs_test, unpacked_masks_test, bias_mat)
 
-    #K.mean(K.equal(lbls_test, K.round(y_pred)), axis=-1)
-
     sigmoid = nn.Sigmoid()
     probs_test = sigmoid(probs_test)
 
-    return probs_test, lbls_test
+    probs_test4 = sigmoid(probs_test)
+    probs_test5 = sigmoid(probs_test) * unpacked_masks_test1
+
+    probs_test4 = probs_test4.data.cpu().numpy().astype('float32')
+    probs_test5 = probs_test5.data.cpu().numpy().astype('float32')
+    lbls_test3 = lbls_test.data.cpu().numpy().astype('int32')
+
+    probs_test4 = flatten_with_lengths(probs_test4, lengths_test)
+    probs_test5 = flatten_with_lengths(probs_test5, lengths_test)
+
+    lbls_test3 = flatten_with_lengths(lbls_test3, lengths_test)
+
+    print("Roc", roc_auc_score(lbls_test3, probs_test4))
+    print("Roc with masks", roc_auc_score(lbls_test3, probs_test5))
+    print("Accuracy", np.mean(np.equal(lbls_test3, np.round(probs_test4))))
+
+    return probs_test, lbls_test, probs_test4, lbls_test3
