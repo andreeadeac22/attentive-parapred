@@ -13,7 +13,7 @@ NUM_SPLIT = 3
 
 epochs = 16
 
-batch_size = 32
+batch_size = 108
 
 track_f = open("track_file.txt", "w")
 

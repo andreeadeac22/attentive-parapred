@@ -53,16 +53,17 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
         lbls_test = Variable(index_select(lbls, 0, test_idx))
         mask_test = Variable(index_select(masks, 0, test_idx))
 
-        #probs_test1, lbls_test1, probs_test2, lbls_test2 =
-        # simple_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
+        #probs_test1, lbls_test1, probs_test2, lbls_test2 = \
+        #    simple_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
         #                        cdrs_test, lbls_test, mask_test, lengths_test)
 
-        #probs_test, lbls_test = attention_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
-        #                      cdrs_test, lbls_test, mask_test, lengths_test)
-
         probs_test1, lbls_test1, probs_test2, lbls_test2 = \
-            atrous_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
-                                 cdrs_test, lbls_test, mask_test, lengths_test)
+            attention_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
+                              cdrs_test, lbls_test, mask_test, lengths_test)
+
+        #probs_test1, lbls_test1, probs_test2, lbls_test2 = \
+        #    atrous_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
+        #                         cdrs_test, lbls_test, mask_test, lengths_test)
 
         print("test", file=track_f)
 
@@ -96,21 +97,27 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
 
 def compute_classifier_metrics(labels, probs, labels1, probs1, threshold=0.5):
     matrices = []
-    aucs = []
+    aucs1 = []
+    aucs2 = []
+    #aucs3 = []
+
     mcorrs = []
 
     #print("labels", labels)
     #print("probs", probs)
 
-    aucs.append(roc_auc_score(labels1, probs1))
+    aucs1.append(roc_auc_score(labels1, probs1))
 
     for l, p in zip(labels, probs):
         #print("l", l)
         #print("p", p)
-        #aucs.append(roc_auc_score(l, p))
+        aucs2.append(roc_auc_score(l, p))
         l_pred = (p > threshold).astype(int)
         matrices.append(confusion_matrix(l, l_pred))
         mcorrs.append(matthews_corrcoef(l, l_pred))
+
+    #for l, p in zip(labels1, probs1):
+    #    aucs3.append(roc_auc_score(l, p))
 
     matrices = np.stack(matrices)
     mean_conf = np.mean(matrices, axis=0)
@@ -136,9 +143,17 @@ def compute_classifier_metrics(labels, probs, labels1, probs1, threshold=0.5):
     fsc = np.mean(fscores)
     fsc_err = 2 * np.std(fscores)
 
-    auc_scores = np.array(aucs)
-    auc = np.mean(auc_scores)
-    auc_err = 2 * np.std(auc_scores)
+    auc_scores1 = np.array(aucs1)
+    auc1 = np.mean(auc_scores1)
+    auc_err1 = 2 * np.std(auc_scores1)
+
+    auc_scores2 = np.array(aucs2)
+    auc2 = np.mean(auc_scores2)
+    auc_err2 = 2 * np.std(auc_scores2)
+
+    #auc_scores3 = np.array(aucs3)
+    #auc3 = np.mean(auc_scores3)
+    #auc_err3 = 2 * np.std(auc_scores3)
 
     mcorr_scores = np.array(mcorrs)
     mcorr = np.mean(mcorr_scores)
@@ -151,7 +166,9 @@ def compute_classifier_metrics(labels, probs, labels1, probs1, threshold=0.5):
     print("Recall = {} +/- {}".format(rec, rec_err))
     print("Precision = {} +/- {}".format(prec, prec_err))
     print("F-score = {} +/- {}".format(fsc, fsc_err))
-    print("ROC AUC = {} +/- {}".format(auc, auc_err))
+    print("ROC AUC - concatenated = {} +/- {}".format(auc1, auc_err1))
+    print("ROC AUC - original = {} +/- {}".format(auc2, auc_err2))
+    #print("ROC AUC - concatenated and iterated = {} +/- {}".format(auc3, auc_err3))
     print("MCC = {} +/- {}".format(mcorr, mcorr_err))
 
 def open_crossval_results(folder="cv-ab-seq", num_results=NUM_ITERATIONS,
