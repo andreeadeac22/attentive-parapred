@@ -15,10 +15,10 @@ class DilatedConv(nn.Module):
         self.conv2 = nn.Conv1d(32, 64, 3, padding=2, dilation=2)
         self.conv3 = nn.Conv1d(64, 128, 3, padding=4, dilation=4)
         self.conv4 = nn.Conv1d(128, 256, 3, padding=8, dilation=8)
-        self.conv5 = nn.Conv1d(256, 256, 3, padding=16, dilation=16)
-        self.conv6 = nn.Conv1d(256, 512, 3, padding=32, dilation=32)
+        self.conv5 = nn.Conv1d(256, 512, 3, padding=16, dilation=16)
+        #self.conv6 = nn.Conv1d(256, 512, 3, padding=32, dilation=32)
         self.elu = nn.ELU()
-        self.dropout = nn.Dropout()
+        self.dropout = nn.Dropout(0.7)
         self.fc = nn.Linear(512, 1, 1)
 
 
@@ -68,11 +68,11 @@ class DilatedConv(nn.Module):
 
         # print("x after conv5", x.data.shape)
 
-        x = self.conv6(x)
+        #x = self.conv6(x)
         # print("x after conv5", x.data.shape)
 
-        x = torch.mul(x, unpacked_masks)
-        x = self.elu(x)
+        #x = torch.mul(x, unpacked_masks)
+        #x = self.elu(x)
 
         x = torch.transpose(x, 1, 2)
 
