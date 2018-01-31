@@ -101,25 +101,25 @@ def atrous_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_templ
 
         model.eval()
 
-        cdrs_test1, masks_test1, lengths_test1, lbls_test1 = sort_batch(cdrs_test, masks_test, list(lengths_test),
+        cdrs_test2, masks_test2, lengths_test2, lbls_test2 = sort_batch(cdrs_test, masks_test, list(lengths_test),
                                                                     lbls_test)
 
-        unpacked_masks_test1 = masks_test1
+        unpacked_masks_test2 = masks_test2
 
-        probs_test1 = model(cdrs_test1, unpacked_masks_test1)
+        probs_test2 = model(cdrs_test2, unpacked_masks_test2)
 
         # K.mean(K.equal(lbls_test, K.round(y_pred)), axis=-1)
 
         sigmoid = nn.Sigmoid()
-        probs_test1 = sigmoid(probs_test1)
+        probs_test2 = sigmoid(probs_test2)
 
-        probs_test1 = probs_test1.data.cpu().numpy().astype('float32')
-        lbls_test1 = lbls_test1.data.cpu().numpy().astype('int32')
+        probs_test2 = probs_test2.data.cpu().numpy().astype('float32')
+        lbls_test2 = lbls_test2.data.cpu().numpy().astype('int32')
 
-        probs_test1 = flatten_with_lengths(probs_test1, lengths_test1)
-        lbls_test1 = flatten_with_lengths(lbls_test1, lengths_test1)
+        probs_test2 = flatten_with_lengths(probs_test2, lengths_test2)
+        lbls_test2 = flatten_with_lengths(lbls_test2, lengths_test2)
 
-        print("Roc", roc_auc_score(lbls_test1, probs_test1))
+        print("Roc", roc_auc_score(lbls_test2, probs_test2))
 
     torch.save(model.state_dict(), weights_template.format(weights_template_number))
 
@@ -129,12 +129,22 @@ def atrous_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_templ
     cdrs_test, masks_test, lengths_test, lbls_test = sort_batch(cdrs_test, masks_test, list(lengths_test), lbls_test)
 
     unpacked_masks_test = masks_test
+    packed_input = pack_padded_sequence(masks_test, list(lengths_test), batch_first=True)
+    masks_test, _ = pad_packed_sequence(packed_input, batch_first=True)
 
     probs_test = model(cdrs_test, unpacked_masks_test)
 
-    #K.mean(K.equal(lbls_test, K.round(y_pred)), axis=-1)
+    # K.mean(K.equal(lbls_test, K.round(y_pred)), axis=-1)
 
     sigmoid = nn.Sigmoid()
     probs_test = sigmoid(probs_test)
 
-    return probs_test, lbls_test
+    probs_test1 = probs_test.data.cpu().numpy().astype('float32')
+    lbls_test1 = lbls_test.data.cpu().numpy().astype('int32')
+
+    probs_test1 = flatten_with_lengths(probs_test1, list(lengths_test))
+    lbls_test1 = flatten_with_lengths(lbls_test1, list(lengths_test))
+
+    print("Roc", roc_auc_score(lbls_test1, probs_test1))
+
+    return probs_test, lbls_test, probs_test1, lbls_test1  # get them in kfold, append, concatenate do roc on them

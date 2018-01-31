@@ -128,25 +128,17 @@ def process_cv_results():
     labels, probs, labels1, probs1 = open_crossval_results("cv-ab-seq", NUM_ITERATIONS)
     #labels_abip, probs_abip = open_crossval_results("cv-ab-seq-abip", 10)
 
-    #fig = plot_pr_curve(labels, probs, colours=("#0072CF", "#68ACE5"),
-    #                    label="Parapred")
-
-    #fig1 = plot_pr_curve(labels1, probs1, colours=("#0072CF", "#68ACE5"),
-    #                    label="Parapred")
-
+    fig = plot_pr_curve(labels, probs, colours=("#0072CF", "#68ACE5"),
+                        label="Parapred")
     #fig = plot_pr_curve(labels_abip, probs_abip, colours=("#D6083B", "#EB99A9"),
     #                    label="Parapred using ABiP data", plot_fig=fig)
-    #fig = plot_abip_pr(fig)
-    #fig.savefig("pr.pdf")
 
-    #fig = plot_abip_pr(fig1)
-    #fig1.savefig("pr.pdf")
+    fig = plot_abip_pr(fig)
+    fig.savefig("pr.pdf")
 
     # Computing overall classifier metrics
     print("Computing classifier metrics")
     compute_classifier_metrics(labels, probs, labels1, probs1, threshold=0.4913739)
-
-    #compute_classifier_metrics(labels1, probs1, threshold=0.4913739)
 
 run_cv()
 process_cv_results()
