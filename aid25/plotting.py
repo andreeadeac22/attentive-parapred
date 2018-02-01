@@ -1,5 +1,7 @@
 from sklearn import metrics
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 def plot_roc_curve(labels_test, probs_test, colours=("#0072CF", "#68ACE5"),

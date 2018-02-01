@@ -8,12 +8,12 @@ chothia_cdr_def = { "L1" : (24, 34), "L2" : (50, 56), "L3" : (89, 97),
                     "H1" : (26, 32), "H2" : (52, 56), "H3" : (95, 102) }
 cdr_names = ["H1", "H2", "H3", "L1", "L2", "L3"]
 
-NUM_ITERATIONS = 1
+NUM_ITERATIONS = 2
 NUM_SPLIT = 3
 
 epochs = 16
 
-batch_size = 108
+batch_size = 32
 
 track_f = open("track_file.txt", "w")
 

@@ -53,21 +53,22 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
         lbls_test = Variable(index_select(lbls, 0, test_idx))
         mask_test = Variable(index_select(masks, 0, test_idx))
 
-        #probs_test1, lbls_test1, probs_test2, lbls_test2 = \
-        #    simple_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
-        #                        cdrs_test, lbls_test, mask_test, lengths_test)
-
-        probs_test1, lbls_test1, probs_test2, lbls_test2 = \
-            attention_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
+        code = 1
+        if code ==1:
+            probs_test1, lbls_test1, probs_test2, lbls_test2 = \
+                simple_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
+                                    cdrs_test, lbls_test, mask_test, lengths_test)
+        if code == 2:
+            probs_test1, lbls_test1, probs_test2, lbls_test2 = \
+                attention_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
                               cdrs_test, lbls_test, mask_test, lengths_test)
 
-        #probs_test1, lbls_test1, probs_test2, lbls_test2 = \
-        #    atrous_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
-        #                         cdrs_test, lbls_test, mask_test, lengths_test)
+        if code == 3:
+            probs_test1, lbls_test1, probs_test2, lbls_test2 = \
+                atrous_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
+                                     cdrs_test, lbls_test, mask_test, lengths_test)
 
         print("test", file=track_f)
-
-        #print("probs_test", probs_test)
 
         lbls_test2 = np.squeeze(lbls_test2)
         all_lbls2 = np.concatenate((all_lbls2, lbls_test2))
