@@ -4,13 +4,13 @@ import pickle
 import torch
 torch.set_printoptions(threshold=50000)
 import pandas as pd
-from parsing import *
-from search import *
 from Bio.PDB import Polypeptide
 from os.path import isfile, exists
 import numpy as np
 
 from constants import *
+from parsing import *
+from search import *
 
 import warnings
 warnings.filterwarnings("ignore")

@@ -20,7 +20,7 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
                   weights_template="weights-fold-{}.h5", seed=0):
     cdrs, lbls, masks, lengths = dataset["cdrs"], dataset["lbls"], dataset["masks"], dataset["lengths"]
 
-    #print("cdrs", cdrs, file=data_file)
+    print("cdrs", cdrs.shape)
     #print("lbls", lbls, file=data_file)
     #print("masks", masks, file=data_file)
     #print("lengths", lengths, file=data_file)
@@ -96,30 +96,7 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
     with open(output_file, "wb") as f:
         pickle.dump((lbl_mat1, prob_mat1, mask_mat, all_lbls2, all_probs2), f)
 
-def compute_classifier_metrics(labels, probs, labels1, probs1, threshold=0.5):
-    matrices = []
-    aucs1 = []
-    aucs2 = []
-    #aucs3 = []
-
-    mcorrs = []
-
-    #print("labels", labels)
-    #print("probs", probs)
-
-    aucs1.append(roc_auc_score(labels1, probs1))
-
-    for l, p in zip(labels, probs):
-        #print("l", l)
-        #print("p", p)
-        aucs2.append(roc_auc_score(l, p))
-        l_pred = (p > threshold).astype(int)
-        matrices.append(confusion_matrix(l, l_pred))
-        mcorrs.append(matthews_corrcoef(l, l_pred))
-
-    #for l, p in zip(labels1, probs1):
-    #    aucs3.append(roc_auc_score(l, p))
-
+def helper_compute_metrics(matrices, aucs, mcorrs):
     matrices = np.stack(matrices)
     mean_conf = np.mean(matrices, axis=0)
     errs_conf = 2 * np.std(matrices, axis=0)
@@ -129,7 +106,7 @@ def compute_classifier_metrics(labels, probs, labels1, probs1, threshold=0.5):
     fps = matrices[:, 0, 1]
 
     tpsf = tps.astype(float)
-    fnsf= fns.astype(float)
+    fnsf = fns.astype(float)
     fpsf = fps.astype(float)
 
     recalls = tpsf / (tpsf + fnsf)
@@ -144,17 +121,9 @@ def compute_classifier_metrics(labels, probs, labels1, probs1, threshold=0.5):
     fsc = np.mean(fscores)
     fsc_err = 2 * np.std(fscores)
 
-    auc_scores1 = np.array(aucs1)
-    auc1 = np.mean(auc_scores1)
-    auc_err1 = 2 * np.std(auc_scores1)
-
-    auc_scores2 = np.array(aucs2)
-    auc2 = np.mean(auc_scores2)
-    auc_err2 = 2 * np.std(auc_scores2)
-
-    #auc_scores3 = np.array(aucs3)
-    #auc3 = np.mean(auc_scores3)
-    #auc_err3 = 2 * np.std(auc_scores3)
+    auc_scores = np.array(aucs)
+    auc = np.mean(auc_scores)
+    auc_err = 2 * np.std(auc_scores)
 
     mcorr_scores = np.array(mcorrs)
     mcorr = np.mean(mcorr_scores)
@@ -167,10 +136,47 @@ def compute_classifier_metrics(labels, probs, labels1, probs1, threshold=0.5):
     print("Recall = {} +/- {}".format(rec, rec_err))
     print("Precision = {} +/- {}".format(prec, prec_err))
     print("F-score = {} +/- {}".format(fsc, fsc_err))
-    print("ROC AUC - concatenated = {} +/- {}".format(auc1, auc_err1))
-    print("ROC AUC - original = {} +/- {}".format(auc2, auc_err2))
-    #print("ROC AUC - concatenated and iterated = {} +/- {}".format(auc3, auc_err3))
+    print("ROC AUC = {} +/- {}".format(auc, auc_err))
+    #print("ROC AUC - original = {} +/- {}".format(auc2, auc_err2))
+    # print("ROC AUC - concatenated and iterated = {} +/- {}".format(auc3, auc_err3))
     print("MCC = {} +/- {}".format(mcorr, mcorr_err))
+
+
+def compute_classifier_metrics(labels, probs, labels1, probs1, threshold=0.5):
+    matrices = []
+    matrices1 = []
+
+    aucs1 = []
+    aucs2 = []
+
+    mcorrs = []
+    mcorrs1 = []
+
+    #print("labels", labels)
+    #print("probs", probs)
+
+    for l, p in zip(labels, probs):
+        #print("l", l)
+        #print("p", p)
+        aucs2.append(roc_auc_score(l, p))
+        l_pred = (p > threshold).astype(int)
+        matrices.append(confusion_matrix(l, l_pred))
+        mcorrs.append(matthews_corrcoef(l, l_pred))
+
+    for l1, p1 in zip(labels1, probs1):
+        #print("in for")
+        #print("l1", l1)
+        #print("p1", p1)
+        aucs1.append(roc_auc_score(l1, p1))
+        l_pred1 = (p1 > threshold).astype(int)
+        matrices1.append(confusion_matrix(l1, l_pred1))
+        mcorrs1.append(matthews_corrcoef(l1, l_pred1))
+
+    print("Metrics with the original version")
+    helper_compute_metrics(matrices=matrices,  aucs=aucs2, mcorrs =mcorrs )
+    print("Metrics with probabilities concatenated")
+    helper_compute_metrics(matrices=matrices1, aucs=aucs1, mcorrs=mcorrs1)
+
 
 def open_crossval_results(folder="cv-ab-seq", num_results=NUM_ITERATIONS,
                           loop_filter=None, flatten_by_lengths=True):
@@ -212,8 +218,11 @@ def open_crossval_results(folder="cv-ab-seq", num_results=NUM_ITERATIONS,
         class_probabilities.append(p)
         labels.append(l)
 
-        class_probabilities1 = np.concatenate((class_probabilities1, all_probs))
-        labels1 = np.concatenate((labels1,all_lbls))
+        #class_probabilities1 = np.concatenate((class_probabilities1, all_probs))
+        #labels1 = np.concatenate((labels1,all_lbls))
+
+        class_probabilities1.append(all_probs)
+        labels1.append(all_lbls)
 
     return labels, class_probabilities, labels1, class_probabilities1
 

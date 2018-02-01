@@ -14,6 +14,7 @@ from sklearn.metrics import confusion_matrix, roc_auc_score, matthews_corrcoef
 from model import *
 from constants import *
 from evaluation_tools import *
+from visualisation import *
 
 def simple_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_template, weights_template_number,
                cdrs_test, lbls_test, masks_test, lengths_test):
@@ -149,5 +150,22 @@ def simple_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_templ
     lbls_test1 = flatten_with_lengths(lbls_test1, list(lengths_test))
 
     print("Roc", roc_auc_score(lbls_test1, probs_test1))
+
+    if visualisation_flag:
+        cdrs_test, masks_test, lengths_test, lbls_test, index = vis_sort_batch(cdrs_test, masks_test, list(lengths_test),
+                                                                    lbls_test)
+
+        vis_dataset = build_the_pdb_data(visualisation_pdb)
+        vis_cdrs, vis_masks, vis_labels, vis_lengths = \
+            vis_dataset["cdrs"], vis_dataset["masks"], vis_dataset["lbls"], vis_dataset["lengths"]
+
+        vis_unpacked_masks = vis_masks
+        vis_packed_input = pack_padded_sequence(vis_masks, list(vis_lengths), batch_first=True)
+        vis_masks, _ = pad_packed_sequence(vis_packed_input, batch_first=True)
+
+        vis_probs = model(vis_cdrs, vis_unpacked_masks, vis_masks, list(vis_lengths))
+
+        print_probabilities(vis_probs, index)
+
 
     return probs_test, lbls_test, probs_test1, lbls_test1 # get them in kfold, append, concatenate do roc on them

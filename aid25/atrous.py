@@ -16,11 +16,9 @@ class DilatedConv(nn.Module):
         self.conv3 = nn.Conv1d(64, 128, 3, padding=4, dilation=4)
         self.conv4 = nn.Conv1d(128, 256, 3, padding=8, dilation=8)
         self.conv5 = nn.Conv1d(256, 512, 3, padding=16, dilation=16)
-        #self.conv6 = nn.Conv1d(256, 512, 3, padding=32, dilation=32)
         self.elu = nn.ELU()
-        self.dropout = nn.Dropout(0.7)
+        self.dropout = nn.Dropout(0.3)
         self.fc = nn.Linear(512, 1, 1)
-
 
         for m in self.modules():
             self.weights_init(m)
@@ -29,6 +27,11 @@ class DilatedConv(nn.Module):
         if isinstance(m, nn.Conv1d):
             torch.nn.init.xavier_uniform(m.weight.data)
             m.bias.data.fill_(0.0)
+        """""
+        if isinstance(m, nn.Linear):
+            torch.nn.init.xavier_uniform(m.weight.data)
+            m.bias.data.fill_(0.0)
+        """
 
     def forward(self, input, unpacked_masks):
         x=input

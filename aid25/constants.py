@@ -8,12 +8,16 @@ chothia_cdr_def = { "L1" : (24, 34), "L2" : (50, 56), "L3" : (89, 97),
                     "H1" : (26, 32), "H2" : (52, 56), "H3" : (95, 102) }
 cdr_names = ["H1", "H2", "H3", "L1", "L2", "L3"]
 
-NUM_ITERATIONS = 2
-NUM_SPLIT = 3
+NUM_ITERATIONS = 10
+NUM_SPLIT = 10
 
 epochs = 16
 
 batch_size = 32
+
+visualisation_flag = True
+
+visualisation_pdb = "4bz1"
 
 track_f = open("track_file.txt", "w")
 
@@ -28,3 +32,5 @@ indices_file = open("indices.txt", "w")
 sort_file = open("sort_file.txt", "w")
 
 attention_file = open("attention.txt", "w")
+
+visualisation_file = open("visualisation.txt", "w")
