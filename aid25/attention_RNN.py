@@ -27,7 +27,6 @@ class AttentionRNN(nn.Module):
 
         self.fc1 = nn.Linear(hidden_size, 1)
 
-
         for m in self.modules():
             self.weights_init(m)
 
@@ -86,7 +85,7 @@ class AttentionRNN(nn.Module):
         if use_cuda:
             hidden = hidden.cuda()
             cell = cell.cuda()
-        timesteps = 32 # how big the output needs to be - 1 for each residue
+        #timesteps = 32 # how big the output needs to be - 1 for each residue
 
         print("u_a", u_a, file=attention_file)
 
