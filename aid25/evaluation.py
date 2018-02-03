@@ -42,6 +42,10 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
         lengths_train = [lengths[i] for i in train_idx]
         lengths_test = [lengths[i] for i in test_idx]
 
+        #print("train_idx", train_idx)
+
+        #visualisation_flag = (0 not in train_idx)
+
         train_idx = torch.from_numpy(train_idx)
         test_idx = torch.from_numpy(test_idx)
 

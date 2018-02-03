@@ -169,6 +169,7 @@ def get_pdb_structure(pdb_file_name, ab_h_chain, ab_l_chain, ag_chain):
     #print(ab_h_chain, ab_l_chain, ag_chain)
     for line in in_file:
         if line.startswith('ATOM') or line.startswith('HETATM'):
+
             atom = Atom(line)
             res_name = atom.res_name
             res_full_name = atom.res_full_name

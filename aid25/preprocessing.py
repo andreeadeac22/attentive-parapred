@@ -15,8 +15,6 @@ from search import *
 import warnings
 warnings.filterwarnings("ignore")
 
-DATA_DIRECTORY = 'data/'
-PDBS_FORMAT = 'data/{}.pdb'
 CSV_NAME = 'sabdab_27_jun_95_90.csv'
 data_frame = pd.read_csv(DATA_DIRECTORY + CSV_NAME)
 
@@ -115,22 +113,22 @@ def seq_to_one_hot(res_seq_one, chain_encoding):
 
 def find_chain(cdr_name):
     if cdr_name == "H1":
-        print("H1")
+        #print("H1")
         return [1, 0, 0, 0, 0, 0,]
     if cdr_name == "H2":
-        print("H2")
+        #print("H2")
         return [0, 1, 0, 0, 0, 0]
     if cdr_name == "H3":
-        print("H3")
+        #print("H3")
         return [0, 0, 1, 0, 0, 0]
     if cdr_name == "L1":
-        print("L1")
+        #print("L1")
         return [0, 0, 0, 1, 0, 0]
     if cdr_name == "L2":
-        print("L2")
+        #print("L2")
         return [0, 0, 0, 0, 1, 0]
     if cdr_name == "L3":
-        print("L3")
+        #print("L3")
         return [0, 0, 0, 0, 0, 1]
 
 
