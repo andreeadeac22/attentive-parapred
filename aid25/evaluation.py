@@ -44,8 +44,6 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
 
         #print("train_idx", train_idx)
 
-        #visualisation_flag = (0 not in train_idx)
-
         train_idx = torch.from_numpy(train_idx)
         test_idx = torch.from_numpy(test_idx)
 

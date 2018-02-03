@@ -8,12 +8,15 @@ from Bio.PDB import Polypeptide
 from os.path import isfile, exists
 import numpy as np
 from torch.autograd import Variable
+from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence
+import torch.nn as nn
 
 from constants import *
 from parsing import *
 from search import *
 from model import *
 from preprocessing import process_chains
+from evaluation_tools import *
 
 DATA_DIRECTORY = 'data/'
 PDBS_FORMAT = 'data/{}.pdb'
@@ -50,7 +53,7 @@ def build_the_pdb_data(pdb_name= visualisation_pdb):
                 "cdrs": cdrs,
             }
 
-            with open(vis_dataset, "wb") as write_file:
+            with open(vis_dataset_file, "wb") as write_file:
                 pickle.dump(data, write_file, protocol=2)
 
             ag_search = NeighbourSearch(ag_atoms)  # replace this
@@ -74,6 +77,9 @@ def build_the_pdb_data(pdb_name= visualisation_pdb):
 default_out_file_name = visualisation_pdb+"_copy.pdb"
 
 def divide(cdrs, probs):
+    if use_cuda:
+        cdrs = cdrs.cpu()
+        probs = probs.cpu()
     cdrs = cdrs.data
     probs = probs.data.numpy()
     for i in range(6):
@@ -120,9 +126,12 @@ def get_residue_numbers(vis_cdrs):
     return vis_cdrs_h1_numbers, vis_cdrs_h2_numbers, vis_cdrs_h3_numbers, \
            vis_cdrs_l1_numbers, vis_cdrs_l2_numbers, vis_cdrs_l3_numbers
 
-def print_probabilities(vis_pcdrs, vis_probs, out_file_name = default_out_file_name):
-    the_model = AbSeqModel()
-    the_model.load_state_dict(torch.load("cv-ab-seq/weights/run-0-fold-9"))
+def print_probabilities(out_file_name = default_out_file_name):
+    model = AbSeqModel()
+    model.load_state_dict(torch.load("cv-ab-seq/weights/run-0-fold-9.pth.tar"))
+
+    if use_cuda:
+        model.cuda()
 
     print("writing to visualisation file")
     vis_dataset = build_the_pdb_data(visualisation_pdb)
@@ -146,11 +155,8 @@ def print_probabilities(vis_pcdrs, vis_probs, out_file_name = default_out_file_n
     vis_probs = torch.index_select(vis_probs, 0, vis_index)
     vis_cdrs = torch.index_select(vis_cdrs, 0, vis_index)
 
-    print_probabilities(vis_cdrs, vis_probs)
-
-
-    if exists(vis_dataset) and isfile(vis_dataset):
-        with open(vis_dataset, "rb") as read_file:
+    if exists(vis_dataset_file) and isfile(vis_dataset_file):
+        with open(vis_dataset_file, "rb") as read_file:
             dataset = pickle.load(read_file)
     ab_h_chain = dataset["ab_h_chain"]
     ab_l_chain = dataset["ab_l_chain"]
@@ -169,7 +175,7 @@ def print_probabilities(vis_pcdrs, vis_probs, out_file_name = default_out_file_n
     #print("vis_parapred_cdrs", vis_pcdrs)
     #print("vis_probs", vis_probs)
 
-    probs_h1, probs_h2, probs_h3, probs_l1, probs_l2, probs_l3 = divide(vis_pcdrs, vis_probs)
+    probs_h1, probs_h2, probs_h3, probs_l1, probs_l2, probs_l3 = divide(vis_cdrs, vis_probs)
 
     atom = 0
     probs_h1_counter = -1

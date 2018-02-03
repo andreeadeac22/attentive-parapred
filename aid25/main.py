@@ -18,6 +18,7 @@ from os.path import exists
 
 from evaluation import *
 from plotting import *
+from visualisation import *
 
 def full_run(dataset="data/sabdab_27_jun_95_90.csv", out_weights="weights.h5"):
     print("main, full_run")
@@ -135,6 +136,10 @@ def process_cv_results():
 
     fig = plot_abip_pr(fig)
     fig.savefig("pr.pdf")
+
+    print("Printing PDB for visualisation")
+    if visualisation_flag:
+        print_probabilities()
 
     # Computing overall classifier metrics
     print("Computing classifier metrics")

@@ -11,12 +11,12 @@ cdr_names = ["H1", "H2", "H3", "L1", "L2", "L3"]
 NUM_ITERATIONS = 1
 NUM_SPLIT = 3
 
-epochs = 16
+epochs = 1
 
-batch_size = 32
+batch_size = 64
 
 visualisation_pdb_number = 0
-
+visualisation_flag = True
 DATA_DIRECTORY = 'data/'
 PDBS_FORMAT = 'data/{}.pdb'
 
@@ -24,7 +24,7 @@ visualisation_pdb = "4bz1"
 
 visualisation_pdb_file_name = PDBS_FORMAT.format(visualisation_pdb)
 
-vis_dataset = "visualisation-dataset.p"
+vis_dataset_file = "visualisation-dataset.p"
 
 track_f = open("track_file.txt", "w")
 

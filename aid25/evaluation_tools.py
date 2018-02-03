@@ -32,6 +32,7 @@ def vis_sort_batch(cdrs, masks, lengths, lbls):
     if use_cuda:
         index = index.cuda()
         cdrs = cdrs.cuda()
+        lbls = lbls.cuda()
         masks = masks.cuda()
 
     cdrs = torch.index_select(cdrs, 0, index)
