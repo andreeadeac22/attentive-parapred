@@ -43,11 +43,11 @@ def load_chains(csv_file):
         print(ab_h_chain, file=f)
         print(ab_l_chain, file=f)
         print(antigen_chain, file=f)
-        cdrs, ag_atoms = get_pdb_structure(PDBS_FORMAT.format(pdb_name), ab_h_chain, ab_l_chain, antigen_chain)
+        cdrs, ag_atoms, ag = get_pdb_structure(PDBS_FORMAT.format(pdb_name), ab_h_chain, ab_l_chain, antigen_chain)
 
         ag_search = NeighbourSearch(ag_atoms)  # replace this
 
-        yield ag_search, cdrs, pdb_name
+        yield ag_search, cdrs, pdb_name, ag
         i = i + 1
 
 def residue_in_contact_with(res, c_search, dist=CONTACT_DISTANCE):
@@ -213,7 +213,7 @@ def process_dataset(csv_file):
     all_lengths = []
     all_masks = []
 
-    for ag_search, cdrs, pdb in load_chains(csv_file):
+    for ag_search, cdrs, pdb, ag in load_chains(csv_file):
         print("Processing PDB ", pdb, file=f)
         print("Processing PDB ", pdb)
 

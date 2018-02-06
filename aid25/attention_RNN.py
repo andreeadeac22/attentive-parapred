@@ -87,7 +87,7 @@ class AttentionRNN(nn.Module):
             cell = cell.cuda()
         #timesteps = 32 # how big the output needs to be - 1 for each residue
 
-        print("u_a", u_a, file=attention_file)
+        #print("u_a", u_a, file=attention_file)
 
         for i in range(input.data.shape[1]):
             # hidden is batch, features
@@ -97,7 +97,7 @@ class AttentionRNN(nn.Module):
             # w_a is batch, 1
             w_a = w_a.view(w_a.data.shape[0], w_a.data.shape[1], 1)
 
-            print("w_a", w_a, file=attention_file)
+            #print("w_a", w_a, file=attention_file)
 
             #print("u_a", u_a.data.shape)
             #print("w_a", w_a.data.shape)
@@ -105,7 +105,7 @@ class AttentionRNN(nn.Module):
             attn_weights = u_a + w_a # attn_weights is batch, time, 1
             #print("attn.shape after sum", attn_weights.data.shape)
 
-            print("after sum u+w", attn_weights, file=attention_file)
+            #print("after sum u+w", attn_weights, file=attention_file)
 
             attn_weights = F.leaky_relu(attn_weights)
             #print("after leaky", attn_weights, file=attention_file)
@@ -114,11 +114,11 @@ class AttentionRNN(nn.Module):
 
             attn_weights = attn_weights + bias_mat
 
-            print("attn_weights before softmax", attn_weights.data, file=attention_file)
+            #print("attn_weights before softmax", attn_weights.data, file=attention_file)
 
             attn_weights = F.softmax(attn_weights, dim=0) # attn_weights is batch, time, 1
 
-            print("attn_weights after softmax", attn_weights.data, file=attention_file)
+            #print("attn_weights after softmax", attn_weights.data, file=attention_file)
 
 
             attn_weights_transposed = torch.transpose(attn_weights, 1, 2)
@@ -144,7 +144,7 @@ class AttentionRNN(nn.Module):
         all_hidden = torch.stack(all_hidden)
         all_hidden = torch.transpose(all_hidden, 0, 1)
 
-        print("all_hidden", all_hidden, file=attention_file)
+        #print("all_hidden", all_hidden, file=attention_file)
         #print("all_hidden shape", all_hidden.data.shape)
 
         if use_cuda:
@@ -157,6 +157,6 @@ class AttentionRNN(nn.Module):
         x = torch.transpose(x, 1, 2)
         x = torch.mul(x, unpacked_masks)
 
-        print("x at the end", x.data, file=attention_file)
+        #print("x at the end", x.data, file=attention_file)
 
         return x

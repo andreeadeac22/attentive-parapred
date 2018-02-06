@@ -59,6 +59,10 @@ def plot_pr_curve(labels_test, probs_test, colours=("#0072CF", "#68ACE5"),
         l = labels_test[i]
         p = probs_test[i]
 
+        #print("run i", i)
+        #print("labels", l)
+        #print("probs", p)
+
         prec, rec, _ = metrics.precision_recall_curve(l.flatten(), p.flatten())
 
         # Maximum interpolation

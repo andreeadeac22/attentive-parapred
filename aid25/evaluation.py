@@ -44,6 +44,8 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
 
         #print("train_idx", train_idx)
 
+        print("len(train_idx",len(train_idx))
+
         train_idx = torch.from_numpy(train_idx)
         test_idx = torch.from_numpy(test_idx)
 
@@ -55,7 +57,7 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
         lbls_test = Variable(index_select(lbls, 0, test_idx))
         mask_test = Variable(index_select(masks, 0, test_idx))
 
-        code = 1
+        code = 2
         if code ==1:
             probs_test1, lbls_test1, probs_test2, lbls_test2 = \
                 simple_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,

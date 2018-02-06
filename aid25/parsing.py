@@ -88,9 +88,14 @@ class Model(object):
     def __init__(self):
         self.cdrs = {name: [] for name in cdr_names}
         self.agatoms = []
+        self.ag_names = []
+        self.ag = {}
         self.ab_h_chain = None
         self.ab_l_chain = None
         self.ag_chain = None
+
+    def get_ag(self):
+        return self.ag
 
     def get_cdrs(self):
         return self.cdrs
@@ -108,12 +113,22 @@ class Model(object):
                 return res
         return None
 
+    def ag_list_has_res(self, ag_res_list, res_name, res_full_seq_num):
+        for res in ag_res_list:
+            if res.full_seq_num == res_full_seq_num and res.get_name() == res_name:
+                return res
+        return None
+
     def agatoms_list_has_atom(self, ag_atom):
         return ag_atom in self.agatoms
 
     def add_residue(self, res, cdr_name):
         if res not in self.cdrs[cdr_name]:
             self.cdrs[cdr_name].append(res)
+
+    def add_ag_residue(self, res, ag_name):
+        if res not in self.ag[ag_name]:
+            self.ag[ag_name].append(res)
 
     def add_atom_to_ab_h_chain(self, atom):
         if self.ab_h_chain == None:
@@ -164,7 +179,19 @@ def get_pdb_structure(pdb_file_name, ab_h_chain, ab_l_chain, ag_chain):
     in_file = open(pdb_file_name, 'r')
     model = Model()
 
+    if " | " in ag_chain:
+        c1, c2 = ag_chain.split(" | ")
+        model.ag_names.append(c1)
+        model.ag_names.append(c2)
+    else:
+        model.ag_names.append(ag_chain)
+    for name in model.ag_names:
+        print("name", name)
+
+    model.ag = {name: [] for name in model.ag_names}
+    ag = model.get_ag()
     cdrs = model.get_cdrs()
+
     #print("new cdrs", cdrs)
     #print(ab_h_chain, ab_l_chain, ag_chain)
     for line in in_file:
@@ -202,52 +229,30 @@ def get_pdb_structure(pdb_file_name, ab_h_chain, ab_l_chain, ag_chain):
                         model.add_residue(residue, cdr_name)
                 if " | " in ag_chain:
                     c1, c2 = ag_chain.split(" | ")
-                    if chain_id == c1 or chain_id == c2:
+                    if chain_id == c1:
                         model.add_agatom(atom)
+                        residue = model.ag_list_has_res(ag[c1], res_name, res_full_seq_num)
+                        if residue == None:
+                            residue = Residue(res_name, res_seq_num, res_full_name, res_full_seq_num)
+                        residue.add_child(atom)
+                        model.add_ag_residue(residue, c1)
+                    if chain_id == c2:
+                        model.add_agatom(atom)
+                        residue = model.ag_list_has_res(ag[c2], res_name, res_full_seq_num)
+                        if residue == None:
+                            residue = Residue(res_name, res_seq_num, res_full_name, res_full_seq_num)
+                        residue.add_child(atom)
+                        model.add_ag_residue(residue, c2)
                 else:
                     if chain_id == ag_chain:
                         model.add_agatom(atom)
+                        residue = model.ag_list_has_res(ag[chain_id], res_name, res_full_seq_num)
+                        if residue == None:
+                            residue = Residue(res_name, res_seq_num, res_full_name, res_full_seq_num)
+                        residue.add_child(atom)
+                        model.add_ag_residue(residue, chain_id)
 
-    #print("ab_h_chain", "res number", pdb_file_name, len(model.ab_h_chain.child_list), file=f)
-    num_atoms = 0
-    for res in model.ab_h_chain.child_list:
-        # print("Res", res, len(res.child_list), "       ", num_atoms, file=f)
-        num_atoms = num_atoms + len(res.child_list)
-        """""
-        if res.get_id() == 139:
-            print("res 139", file=f)
-            for atom in res.child_list:
-                print(atom, atom.res_name, file=f)
-        """
-    #print("atoms number", num_atoms, file=f)
-
-    #print("ab_l_chain", "res number", pdb_file_name, len(model.ab_l_chain.child_list), file=f)
-    num_atoms = 0
-    for res in model.ab_l_chain.child_list:
-        # print("Res", res, len(res.child_list), "       ", num_atoms, file=f)
-        num_atoms = num_atoms + len(res.child_list)
-        """""
-        if res.get_id() == 139:
-            print("res 139", file=f)
-            for atom in res.child_list:
-                print(atom, atom.res_name, file=f)
-        """
-    #print("atoms number", num_atoms, file=f)
-
-    if " | " not in ag_chain:
-        #print("ag_chain", "res number", pdb_file_name, len(model.ag_chain.child_list), file=f)
-        num_atoms = 0
-        for res in model.ag_chain.child_list:
-            #print("Res", res, len(res.child_list), "       ", num_atoms, file=f)
-            num_atoms = num_atoms + len(res.child_list)
-            """""
-            if res.get_id() == 139:
-                print("res 139", file=f)
-                for atom in res.child_list:
-                    print(atom, atom.res_name, file=f)
-            """
-        #print("atoms number", num_atoms, file=f)
-
-    return cdrs, model.agatoms
+    #print("model.ag", ag)
+    return cdrs, model.agatoms, ag
 
 f = open('chains.txt','w')

@@ -97,9 +97,9 @@ def attention_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_te
                 bias_mat = bias_mat.cuda()
 
             output = model(input, unpacked_masks, bias_mat)
-            print("output shape", output.data.shape)
-            print("unpacked_masks shape", unpacked_masks.data.shape)
-            print("unpacked lbls")
+            #print("output shape", output.data.shape)
+            #print("unpacked_masks shape", unpacked_masks.data.shape)
+            #print("unpacked lbls")
 
             loss_weights = (unpacked_lbls * 1.5 + 1) * unpacked_masks
             max_val = (-output).clamp(min=0)

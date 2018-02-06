@@ -11,12 +11,12 @@ cdr_names = ["H1", "H2", "H3", "L1", "L2", "L3"]
 NUM_ITERATIONS = 1
 NUM_SPLIT = 3
 
-epochs = 1
+epochs = 16
 
-batch_size = 64
+batch_size = 32
 
 visualisation_pdb_number = 0
-visualisation_flag = True
+visualisation_flag = False
 DATA_DIRECTORY = 'data/'
 PDBS_FORMAT = 'data/{}.pdb'
 

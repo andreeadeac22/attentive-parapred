@@ -21,6 +21,11 @@ def sort_batch(cdrs, masks, lengths, lbls):
     masks = torch.index_select(masks, 0, index)
     return cdrs, masks, lengths, lbls
 
+def sort_probs(probs):
+    print("probs", probs)
+    probs.sort()
+    return probs
+
 def vis_sort_batch(cdrs, masks, lengths, lbls):
     order = np.argsort(lengths)
     order = order.tolist()
