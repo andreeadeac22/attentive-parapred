@@ -15,10 +15,14 @@ import pickle
 from atrous_run import *
 from attentionRNN_run import *
 from parapred_run import *
+from antigen_run import *
 
 def kfold_cv_eval(dataset, output_file="crossval-data.p",
                   weights_template="weights-fold-{}.h5", seed=0):
-    cdrs, lbls, masks, lengths = dataset["cdrs"], dataset["lbls"], dataset["masks"], dataset["lengths"]
+    cdrs, lbls, masks, lengths, ag, ag_masks, ag_lengths = \
+        dataset["cdrs"], dataset["lbls"], dataset["masks"], dataset["lengths"],\
+        dataset["ag"], dataset["ag_masks"], dataset["ag_lengths"]
+
 
     print("cdrs", cdrs.shape)
     #print("lbls", lbls, file=data_file)
@@ -42,6 +46,9 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
         lengths_train = [lengths[i] for i in train_idx]
         lengths_test = [lengths[i] for i in test_idx]
 
+        ag_lengths_train = [ag_lengths[i] for i in train_idx]
+        ag_lengths_test = [ag_lengths[i] for i in test_idx]
+
         #print("train_idx", train_idx)
 
         print("len(train_idx",len(train_idx))
@@ -52,12 +59,16 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
         cdrs_train = index_select(cdrs, 0, train_idx)
         lbls_train = index_select(lbls, 0, train_idx)
         mask_train = index_select(masks, 0, train_idx)
+        ag_train = index_select(ag, 0, train_idx)
+        ag_masks_train = index_select(ag_masks, 0, train_idx)
 
         cdrs_test = Variable(index_select(cdrs, 0, test_idx))
         lbls_test = Variable(index_select(lbls, 0, test_idx))
         mask_test = Variable(index_select(masks, 0, test_idx))
+        ag_test = Variable(index_select(ag, 0, test_idx))
+        ag_masks_test = Variable(index_select(ag_masks, 0, test_idx))
 
-        code = 2
+        code = 4
         if code ==1:
             probs_test1, lbls_test1, probs_test2, lbls_test2 = \
                 simple_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
@@ -71,6 +82,13 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
             probs_test1, lbls_test1, probs_test2, lbls_test2 = \
                 atrous_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
                                      cdrs_test, lbls_test, mask_test, lengths_test)
+
+        if code == 4:
+            probs_test1, lbls_test1, probs_test2, lbls_test2 = \
+                antigen_run(cdrs_train, lbls_train, mask_train, lengths_train,
+                            ag_train, ag_masks_train, ag_lengths_train, weights_template, i,
+                           cdrs_test, lbls_test, mask_test, lengths_test,
+                            ag_test, ag_masks_test, ag_lengths_test)
 
         print("test", file=track_f)
 

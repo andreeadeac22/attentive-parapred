@@ -1,6 +1,9 @@
 import torch
 
 MAX_CDR_LENGTH = 32
+
+MAX_AG_LENGTH = 1269
+
 use_cuda = torch.cuda.is_available()
 
 NUM_EXTRA_RESIDUES = 2 # The number of extra residues to include on the either side of a CDR

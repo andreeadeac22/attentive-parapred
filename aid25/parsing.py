@@ -182,7 +182,7 @@ def get_pdb_structure(pdb_file_name, ab_h_chain, ab_l_chain, ag_chain):
     if " | " in ag_chain:
         c1, c2 = ag_chain.split(" | ")
         model.ag_names.append(c1)
-        model.ag_names.append(c2)
+        #model.ag_names.append(c2)
     else:
         model.ag_names.append(ag_chain)
     for name in model.ag_names:
@@ -223,7 +223,7 @@ def get_pdb_structure(pdb_file_name, ab_h_chain, ab_l_chain, ag_chain):
                         or (chain_id == ab_l_chain and cdr_name.startswith('L'))) \
                                     and res_seq_num in cdr_range:
                         residue = model.cdr_list_has_res(cdrs[cdr_name], res_name, res_full_seq_num)
-                        if residue == None:
+                        if residue is None:
                             residue = Residue(res_name, res_seq_num, res_full_name, res_full_seq_num)
                         residue.add_child(atom)
                         model.add_residue(residue, cdr_name)
@@ -232,10 +232,11 @@ def get_pdb_structure(pdb_file_name, ab_h_chain, ab_l_chain, ag_chain):
                     if chain_id == c1:
                         model.add_agatom(atom)
                         residue = model.ag_list_has_res(ag[c1], res_name, res_full_seq_num)
-                        if residue == None:
+                        if residue is None:
                             residue = Residue(res_name, res_seq_num, res_full_name, res_full_seq_num)
                         residue.add_child(atom)
                         model.add_ag_residue(residue, c1)
+                    """""
                     if chain_id == c2:
                         model.add_agatom(atom)
                         residue = model.ag_list_has_res(ag[c2], res_name, res_full_seq_num)
@@ -243,16 +244,17 @@ def get_pdb_structure(pdb_file_name, ab_h_chain, ab_l_chain, ag_chain):
                             residue = Residue(res_name, res_seq_num, res_full_name, res_full_seq_num)
                         residue.add_child(atom)
                         model.add_ag_residue(residue, c2)
+                    """
                 else:
                     if chain_id == ag_chain:
                         model.add_agatom(atom)
                         residue = model.ag_list_has_res(ag[chain_id], res_name, res_full_seq_num)
-                        if residue == None:
+                        if residue is None:
                             residue = Residue(res_name, res_seq_num, res_full_name, res_full_seq_num)
                         residue.add_child(atom)
                         model.add_ag_residue(residue, chain_id)
 
     #print("model.ag", ag)
-    return cdrs, model.agatoms, ag
+    return cdrs, model.agatoms, ag, model.ag_names
 
 f = open('chains.txt','w')

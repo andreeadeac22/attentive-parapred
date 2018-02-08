@@ -18,7 +18,8 @@ class AttentionRNN(nn.Module):
         self.dropout1 = nn.Dropout(0.15)
         self.dropout2 = nn.Dropout(0.3)
         self.dropout = nn.Dropout()
-        self.conv2 = nn.Conv1d(hidden_size, 1, 1)
+        self.conv2 = nn.Conv1d(2*hidden_size+NUM_FEATURES, 1, 1)
+        #self.conv3 = nn.Conv1d(34, 1, 1)
 
         # for Ux_j - Ux_j is the same fully-connected layer (multiplication by U), time-distirbuted
         self.conv = nn.Conv1d(NUM_FEATURES, 1, 1)
@@ -48,9 +49,7 @@ class AttentionRNN(nn.Module):
             torch.nn.init.xavier_uniform(m.weight.data)
             m.bias.data.fill_(0.0)
 
-
     def forward(self, input, unpacked_masks, bias_mat):
-
         #print("input shape", input.data.shape);
 
         #AbSeqModel
@@ -87,7 +86,7 @@ class AttentionRNN(nn.Module):
             cell = cell.cuda()
         #timesteps = 32 # how big the output needs to be - 1 for each residue
 
-        #print("u_a", u_a, file=attention_file)
+        #print("u_a", u_a.shape)
 
         for i in range(input.data.shape[1]):
             # hidden is batch, features
@@ -118,7 +117,7 @@ class AttentionRNN(nn.Module):
 
             attn_weights = F.softmax(attn_weights, dim=0) # attn_weights is batch, time, 1
 
-            #print("attn_weights after softmax", attn_weights.data, file=attention_file)
+            #print("attn_weights after softmax", attn_weights.data.shape)
 
 
             attn_weights_transposed = torch.transpose(attn_weights, 1, 2)
@@ -150,10 +149,132 @@ class AttentionRNN(nn.Module):
         if use_cuda:
             all_hidden = all_hidden.cuda()
 
+        # Experiment
+        mirrored_input = Variable(torch.Tensor(input.shape[0], input.shape[1], input.shape[2]))
+        b_size = input.data.shape[0]
+        for i in range(b_size):
+            mirrored_input[i] = input[b_size - i - 1]
+
+        if use_cuda:
+            mirrored_input = mirrored_input.cuda()
+
+        minitial = mirrored_input
+        mx = mirrored_input
+        mx = torch.transpose(mx, 1, 2)
+        mx = self.conv1(mx)
+        mx = torch.transpose(mx, 1, 2)
+        mx = torch.mul(mx, unpacked_masks)
+        mx = self.elu(mx)
+        mx = mx + minitial
+
+        # print("x.shape", x.data.shape)
+        # print("masks.shape", unpacked_masks.data.shape)
+        # print("bias_mat", bias_mat.data)
+
+        # x is batch, time, features
+
+        # Attention
+        mx = torch.transpose(mx, 1, 2)
+        mu_a = self.conv(mx)
+        mu_a = torch.transpose(mu_a, 1, 2)
+
+        mx = torch.transpose(mx, 1, 2)
+
+        # u_a is batch, time, 1
+
+        mall_hidden = []
+        mhidden = Variable(torch.zeros(mx.data.shape[0], self.hidden_size))
+        mcell = Variable(torch.zeros(mx.data.shape[0], self.hidden_size))
+
+        if use_cuda:
+            mhidden = mhidden.cuda()
+            mcell = mcell.cuda()
+        # timesteps = 32 # how big the output needs to be - 1 for each residue
+
+        # print("u_a", u_a.shape)
+
+        for i in range(input.data.shape[1]):
+            # hidden is batch, features
+
+            mhidden = self.dropout(mhidden)
+            mw_a = self.fc1(mhidden)
+            # w_a is batch, 1
+            mw_a = mw_a.view(mw_a.data.shape[0], mw_a.data.shape[1], 1)
+
+            # print("w_a", w_a, file=attention_file)
+
+            # print("u_a", u_a.data.shape)
+            # print("w_a", w_a.data.shape)
+
+            mattn_weights = mu_a + mw_a  # attn_weights is batch, time, 1
+            # print("attn.shape after sum", attn_weights.data.shape)
+
+            # print("after sum u+w", attn_weights, file=attention_file)
+
+            mattn_weights = F.leaky_relu(mattn_weights)
+            # print("after leaky", attn_weights, file=attention_file)
+
+            mbias_mat = bias_mat.view(mattn_weights.data.shape[0], mx.data.shape[1], 1)
+
+            mattn_weights = mattn_weights + mbias_mat
+
+            # print("attn_weights before softmax", attn_weights.data, file=attention_file)
+
+            mattn_weights = F.softmax(mattn_weights, dim=0)  # attn_weights is batch, time, 1
+
+            # print("attn_weights after softmax", attn_weights.data.shape)
+
+
+            mattn_weights_transposed = torch.transpose(mattn_weights, 1, 2)
+            mcontext = torch.bmm(mattn_weights_transposed, mx)  # batch, time, 1 * batch, time, features
+            # context is batch, features
+
+            # print("context.shape", context.data.shape)
+
+            mcontext = torch.squeeze(mcontext)
+
+            # print("context.shape", context.data.shape)
+            # print("hidden.shape", hidden.data.shape)
+            # print("cell.shape", cell.data.shape)
+
+            if use_cuda:
+                mcontext = mcontext.cuda()
+
+            mhidden, mcell = self.lstm_cell(mcontext, (mhidden, mcell))  # B x in, (B x hid, B x hid)
+
+            mall_hidden.append(mhidden)
+
+        # AbSeqModel
+        mall_hidden = torch.stack(mall_hidden)
+        mall_hidden = torch.transpose(mall_hidden, 0, 1)
+
+        # print("all_hidden", all_hidden, file=attention_file)
+        # print("all_hidden shape", all_hidden.data.shape)
+
+        if use_cuda:
+            mall_hidden = mall_hidden.cuda()
+
+        mx = self.dropout2(mall_hidden)
+        mx = torch.mul(mx, unpacked_masks)
+
         x = self.dropout2(all_hidden)
         x = torch.mul(x, unpacked_masks)
+
+        x = torch.cat((x, mx), 2)
+
+        #print("x shape", x.shape)
+
+        x = torch.cat((x, input), 2)
+
+        #print("x shape", x.shape)
+
+        #input_transposed = torch.transpose(input, 1, 2)
+
         x = torch.transpose(x, 1, 2)
         x = self.conv2(x)
+
+        #x +=input_transposed
+        #x = self.conv3(x)
         x = torch.transpose(x, 1, 2)
         x = torch.mul(x, unpacked_masks)
 

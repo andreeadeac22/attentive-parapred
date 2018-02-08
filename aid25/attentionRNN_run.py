@@ -18,7 +18,7 @@ from evaluation_tools import *
 def attention_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_template, weights_template_number,
                cdrs_test, lbls_test, masks_test, lengths_test):
     print("attention run", file=print_file)
-    model = AttentionRNN(512)
+    model = AttentionRNN(256)
 
     ignored_params = list(map(id, [model.conv1.weight, model.conv2.weight]))
     base_params = filter(lambda p: id(p) not in ignored_params,

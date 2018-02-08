@@ -130,28 +130,6 @@ def process_cv_results():
     labels, probs, labels1, probs1 = open_crossval_results("cv-ab-seq", NUM_ITERATIONS)
     #labels_abip, probs_abip = open_crossval_results("cv-ab-seq-abip", 10)
 
-
-    for j in range(NUM_ITERATIONS):
-        probs_run = probs1[j]
-        sorted_probs = sort_probs(probs_run)
-        consec = 0
-        maxi =0
-        for i in range(1, len(sorted_probs)-1):
-            print("in for")
-            if sorted_probs[i]==sorted_probs[i-1]:
-                print("they are equal")
-                consec +=1
-            else:
-                print("not equal")
-                if consec>maxi:
-                    maxi = consec
-                print("consec", consec)
-                consec = 1
-
-        print("maxi", maxi)
-
-        #print("sorted_probs", sorted_probs)
-
     fig = plot_pr_curve(labels, probs, colours=("#0072CF", "#68ACE5"),
                         label="Parapred")
     #fig = plot_pr_curve(labels_abip, probs_abip, colours=("#D6083B", "#EB99A9"),
