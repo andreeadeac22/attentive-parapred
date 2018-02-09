@@ -28,23 +28,31 @@ class AG(nn.Module):
 
         self.agconv3 = nn.Conv1d(128, 256, 3, padding=4, dilation=4)
 
-        #self.conv_fix = nn.Conv1d(1269, 32, 3, padding=1)
+        self.agconv4 = nn.Conv1d(256, 32, 1)
+
 
         self.bn1 = nn.BatchNorm1d(64)
         self.bn2 = nn.BatchNorm1d(128)
         self.bn3 = nn.BatchNorm1d(256)
-        self.bn4 = nn.BatchNorm1d(512)
+        self.bn4 = nn.BatchNorm1d(256)
+
+        self.agbn1 = nn.BatchNorm1d(64)
+        self.agbn2 = nn.BatchNorm1d(128)
+        self.agbn3 = nn.BatchNorm1d(256)
+
         self.elu = nn.ReLU()
         self.dropout = nn.Dropout(0.15)
         self.dropout2 = nn.Dropout(0.5)
-        self.fc = nn.Linear(512, 1, 1)
+        self.fc = nn.Linear(256, 1, 1)
         self.softmax = nn.Softmax(dim=-1)
         self.lrelu = nn.LeakyReLU(0.2)
 
         self.aconv1 = nn.Conv1d(256, 1, 1)
-        self.aconv2 = nn.Conv1d(256, 1, 1)
+        self.aconv2 = nn.Conv1d(32, 1, 1)
+
 
         self.maxpool1 = nn.MaxPool1d(2)
+        self.maxpool2 = nn.MaxPool1d(4)
 
         for m in self.modules():
             self.weights_init(m)
@@ -78,7 +86,7 @@ class AG(nn.Module):
         x = self.dropout(x)
 
         agx = torch.mul(agx, ag_unpacked_masks)
-        agx = self.bn1(agx)
+        agx = self.agbn1(agx)
         agx = self.elu(agx)
         agx = torch.mul(agx, ag_unpacked_masks)
         agx = self.dropout(agx)
@@ -100,11 +108,11 @@ class AG(nn.Module):
         x = self.dropout(x)
 
 
-        agx = self.agconv2(agx)
+        agx = self.conv2(agx)
         # print("x after conv2", x.data.shape)
 
         agx = torch.mul(agx, ag_unpacked_masks)
-        agx = self.bn2(agx)
+        agx = self.agbn2(agx)
         agx = self.elu(agx)
         agx = torch.mul(agx, ag_unpacked_masks)
 
@@ -127,11 +135,11 @@ class AG(nn.Module):
 
         x = self.dropout(x)
 
-        agx = self.agconv3(agx)
+        agx = self.conv3(agx)
         # print("x after conv3", x.data.shape)
 
         agx = torch.mul(agx, ag_unpacked_masks)
-        agx = self.bn3(agx)
+        agx = self.agbn3(agx)
         agx = self.elu(agx)
         agx = torch.mul(agx, ag_unpacked_masks)
 
@@ -147,38 +155,31 @@ class AG(nn.Module):
 
         oldag = agx
 
-        #print("x shape", x.shape)
-        #print("agx shape", agx.shape)
-
-        w_1 = self.aconv1(x)
-        w_2 = self.aconv2(agx)
-        #w_2 = self.aconv2(x)
-
-        #print("w_1", w_1.shape)
-        #print("w_2", w_2.shape)
-
-        w = self.lrelu(w_2 + torch.transpose(w_1, 1, 2))
-
-        #print("w", w.shape)
-
+        heads_no = 8
         bias_mat = 1e9 * (ag_unpacked_masks - 1.0)
 
-        #print("bias_mat", bias_mat.shape)
+        for i in range(heads_no):
+            agconvi = nn.Conv1d(256, 32, 1)
+            aconvi1 = nn.Conv1d(256, 1, 1)
+            aconvi2 = nn.Conv1d(32, 1, 1)
+            if use_cuda:
+                aconvi1.cuda()
+                aconvi2.cuda()
+                agconvi.cuda()
+            agx = agconvi(oldag)
+            w_1 = aconvi1(x)
+            w_2 = aconvi2(agx)
+            w = self.lrelu(w_2 + torch.transpose(w_1, 1, 2))
+            w = self.softmax(w + bias_mat)
+            temp_loop_x = torch.bmm(w, torch.transpose(agx, 1, 2))
+            if i==0:
+                loop_x = temp_loop_x
+            else:
+                loop_x = torch.cat((loop_x, temp_loop_x), dim=2)
 
-        w = self.softmax(w + bias_mat)
-        #print("w", w.data.cpu().numpy(), file=track_f)
-
-        #print("shape", torch.transpose(agx, 1, 2).shape)
-        x = torch.bmm(w, torch.transpose(agx, 1, 2))
-
-       # x = torch.bmm(w, torch.transpose(x,1,2))
-
-        #print("after bmm", x.shape)
-
-        x = torch.transpose(x, 1, 2)
-
-        x = x + old
-        x = torch.cat((x, old), dim=1)
+        x = torch.transpose(loop_x, 1, 2)
+        #x = x + old
+        #x = torch.cat((x, old), dim=1)
         x = torch.mul(x, ab_unpacked_masks)
 
         x = self.bn4(x)
@@ -190,6 +191,6 @@ class AG(nn.Module):
 
         x = self.fc(x)
 
-        #print("x after fc", x.data.shape)
+        print("x after fc", x, file=track_f)
 
         return x

@@ -24,16 +24,25 @@ def antigen_run(cdrs_train, lbls_train, masks_train, lengths_train,
     print("dilated run", file=print_file)
     model = AG()
 
-    ignored_params = list(map(id, [model.conv1.weight]))
+    ignored_params = list(map(id, [model.conv1.weight, model.conv2.weight, model.conv3.weight,
+                                   model.agconv1.weight, model.agconv2.weight, model.agconv3.weight,
+                                   model.aconv1.weight, model.aconv2.weight]))
     base_params = filter(lambda p: id(p) not in ignored_params,
                          model.parameters())
 
     optimizer = optim.Adam([
         {'params': base_params},
         {'params': model.conv1.weight, 'weight_decay': 0.01},
+        {'params': model.conv2.weight, 'weight_decay': 0.01},
+        {'params': model.conv3.weight, 'weight_decay': 0.01},
+        {'params': model.agconv1.weight, 'weight_decay': 0.01},
+        {'params': model.agconv2.weight, 'weight_decay': 0.01},
+        {'params': model.agconv3.weight, 'weight_decay': 0.01},
+        {'params': model.aconv1.weight, 'weight_decay': 0.01},
+        {'params': model.aconv2.weight, 'weight_decay': 0.01}
     ], lr=0.01)
 
-    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[5], gamma=0.1)
+    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[10], gamma=0.1)
 
     total_input = cdrs_train
     total_lbls = lbls_train
