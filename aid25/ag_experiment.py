@@ -155,22 +155,23 @@ class AG(nn.Module):
 
         oldag = agx
 
-        heads_no = 8
+        heads_no = 1
         bias_mat = 1e9 * (ag_unpacked_masks - 1.0)
 
         for i in range(heads_no):
-            agconvi = nn.Conv1d(256, 32, 1)
+            #agconvi = nn.Conv1d(256, 128, 1)
             aconvi1 = nn.Conv1d(256, 1, 1)
-            aconvi2 = nn.Conv1d(32, 1, 1)
+            aconvi2 = nn.Conv1d(256, 1, 1)
             if use_cuda:
                 aconvi1.cuda()
                 aconvi2.cuda()
-                agconvi.cuda()
-            agx = agconvi(oldag)
+                #agconvi.cuda()
+            #agx = agconvi(oldag)
             w_1 = aconvi1(x)
             w_2 = aconvi2(agx)
             w = self.lrelu(w_2 + torch.transpose(w_1, 1, 2))
             w = self.softmax(w + bias_mat)
+            w = self.dropout(w)
             temp_loop_x = torch.bmm(w, torch.transpose(agx, 1, 2))
             if i==0:
                 loop_x = temp_loop_x
@@ -178,7 +179,7 @@ class AG(nn.Module):
                 loop_x = torch.cat((loop_x, temp_loop_x), dim=2)
 
         x = torch.transpose(loop_x, 1, 2)
-        #x = x + old
+        x = x + old
         #x = torch.cat((x, old), dim=1)
         x = torch.mul(x, ab_unpacked_masks)
 

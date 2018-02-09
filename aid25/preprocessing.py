@@ -69,6 +69,9 @@ def residue_seq_to_one(seq):
 def one_to_number(res_str):
     return [aa_s.index(r) for r in res_str]
 
+def coords(ag_res_str):
+    return [[r.x_pos, r.y_pos, r.z_pos] for r in ag_res_str]
+
 def aa_features():
     # Meiler's features
     prop1 = [[1.77, 0.13, 2.43,  1.54,  6.35, 0.17, 0.41],
@@ -114,6 +117,7 @@ def seq_to_one_hot(res_seq_one, chain_encoding):
         chain_encoding = torch.Tensor(chain_encoding)
         chain_encoding = chain_encoding.expand(onehot.shape[0], 6)
         concatenated = torch.cat((onehot, feats), 1)
+        #coords= torch.FloatTensor(coords)
         return torch.cat((onehot, feats, chain_encoding), 1)
     else:
         return None
@@ -125,6 +129,9 @@ def ag_seq_to_one_hot(agc):
         feats = torch.Tensor(aa_features()[new_ints])
         onehot = to_categorical(ints, num_classes=len(aa_s))
         concatenated = torch.cat((onehot, feats), 1)
+        #print("feats", feats)
+        #print("coords", coords)
+        #coords = torch.FloatTensor(coords)
         return torch.cat((onehot, feats), 1)
     else:
         return None
@@ -155,6 +162,8 @@ def process_ag_chains(ag, max_ag_length):
     ag_lengths = []
     for ag_name in cdr_names:
         # Converting residues to amino acid sequences
+        #ag_pos = coords(ag[ag_name])
+        #print("ag_pos", ag_pos)
         agc = residue_seq_to_one(ag[ag_name])
         ag_mat = ag_seq_to_one_hot(agc)
         ag_mat_pad = torch.zeros(max_ag_length, AG_NUM_FEATURES)
@@ -181,7 +190,7 @@ def process_ag_chains(ag, max_ag_length):
             print("cdr_mat", ag_mat)
             print("cdrs[cdr_name]", ag[ag_name])
             print("residue_seq_to_one(cdrs[cdr_name])", residue_seq_to_one(ag[ag_name]))
-            print("seq_to_one_hot(cdr_chain, chain_encoding)", ag_seq_to_one_hot(agc))
+            #print("seq_to_one_hot(cdr_chain, chain_encoding)", ag_seq_to_one_hot(agc))
             print("len(cdr_chain", len(agc))
             print(ag_mask)
 
@@ -214,6 +223,7 @@ def process_chains(ag_search, cdrs, max_cdr_length):
     lengths = []
     for cdr_name in ["H1", "H2", "H3", "L1", "L2", "L3"]:
         # Converting residues to amino acid sequences
+        #cdr_coords = coords(cdrs[cdr_name])
         cdr_chain = residue_seq_to_one(cdrs[cdr_name])
         chain_encoding = find_chain(cdr_name)
         cdr_mat = seq_to_one_hot(cdr_chain, chain_encoding)
@@ -250,7 +260,7 @@ def process_chains(ag_search, cdrs, max_cdr_length):
             print("cdr_mat", cdr_mat)
             print("cdrs[cdr_name]", cdrs[cdr_name])
             print("residue_seq_to_one(cdrs[cdr_name])", residue_seq_to_one(cdrs[cdr_name]))
-            print("seq_to_one_hot(cdr_chain, chain_encoding)", seq_to_one_hot(cdr_chain, chain_encoding))
+            #print("seq_to_one_hot(cdr_chain, chain_encoding)", seq_to_one_hot(cdr_chain, chain_encoding, coords))
             print("len(cdr_chain", len(cdr_chain))
             print(cdr_mask)
 
