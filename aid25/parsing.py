@@ -41,20 +41,10 @@ class Chain(Entity):
 
 
 class Residue(Entity):
-    def __init__(self, name, id, full_name, full_seq_num, x_pos, y_pos, z_pos):
+    def __init__(self, name, id, full_name, full_seq_num):
         Entity.__init__(self, name, id)
         self.full_seq_num = full_seq_num
         self.full_name = full_name
-        self.x_pos = x_pos
-        self.y_pos = y_pos
-        self.z_pos = z_pos
-        self.nr_atoms = 1
-
-        def add_atom(self, atom):
-            self.x_pos = ((self.x_pos * self.nr_atoms) + atom.x_coord) / (self.nr_atoms + 1)
-            self.y_pos = ((self.x_pos * self.nr_atoms) + atom.y_coord) / (self.nr_atoms + 1)
-            self.z_pos = ((self.x_pos * self.nr_atoms) + atom.z_coord) / (self.nr_atoms + 1)
-            self.nr_atoms = self.nr_atoms + 1
 
     def __repr__(self):
         seq = self.get_id()
@@ -66,12 +56,6 @@ class Residue(Entity):
 
     def get_full_name(self):
         return self.full_name
-
-    def add_atom(self, atom):
-        self.x_pos = ((self.x_pos * self.nr_atoms) +atom.x_coord) / (self.nr_atoms+1)
-        self.y_pos = ((self.x_pos * self.nr_atoms) + atom.y_coord) / (self.nr_atoms+1)
-        self.z_pos = ((self.x_pos * self.nr_atoms) + atom.z_coord) / (self.nr_atoms+1)
-        self.nr_atoms = self.nr_atoms + 1
 
 
 class AGResidue(Residue):
@@ -182,10 +166,11 @@ class Model(object):
             if atom.res_full_seq_num == res.full_seq_num:
                 already_exists = True
                 res.child_list.append(atom)
-                res.add_atom(atom)
+                #res.add_atom(atom)
         if not already_exists:
-            res = Residue(atom.res_name, atom.res_seq_num, atom.res_full_name, atom.res_full_seq_num,
-                          atom.x_coord, atom.y_coord, atom.z_coord)
+            #res = Residue(atom.res_name, atom.res_seq_num, atom.res_full_name, atom.res_full_seq_num,
+            #              atom.x_coord, atom.y_coord, atom.z_coord)
+            res = Residue(atom.res_name, atom.res_seq_num, atom.res_full_name, atom.res_full_seq_num)
             res.child_list.append(atom)
             self.ab_h_chain.child_list.append(res)
 
@@ -197,10 +182,11 @@ class Model(object):
             if atom.res_full_seq_num == res.full_seq_num:
                 already_exists = True
                 res.child_list.append(atom)
-                res.add_atom(atom)
+                #res.add_atom(atom)
         if not already_exists:
-            res = Residue(atom.res_name, atom.res_seq_num, atom.res_full_name, atom.res_full_seq_num,
-                          atom.x_coord, atom.y_coord, atom.z_coord)
+            # res = Residue(atom.res_name, atom.res_seq_num, atom.res_full_name, atom.res_full_seq_num,
+            #              atom.x_coord, atom.y_coord, atom.z_coord)
+            res = Residue(atom.res_name, atom.res_seq_num, atom.res_full_name, atom.res_full_seq_num)
             res.child_list.append(atom)
             self.ab_l_chain.child_list.append(res)
 
@@ -212,10 +198,11 @@ class Model(object):
             if atom.res_full_seq_num == res.full_seq_num:
                 already_exists = True
                 res.child_list.append(atom)
-                res.add_atom(atom)
+                #res.add_atom(atom)
         if not already_exists:
-            res = AGResidue(atom.res_name, atom.res_seq_num, atom.res_full_name, atom.res_full_seq_num,
-                          atom.x_coord, atom.y_coord, atom.z_coord)
+            #res = AGResidue(atom.res_name, atom.res_seq_num, atom.res_full_name, atom.res_full_seq_num,
+            #              atom.x_coord, atom.y_coord, atom.z_coord)
+            res = Residue(atom.res_name, atom.res_seq_num, atom.res_full_name, atom.res_full_seq_num)
             res.child_list.append(atom)
             self.ag_chain.child_list.append(res)
 
@@ -274,10 +261,11 @@ def get_pdb_structure(pdb_file_name, ab_h_chain, ab_l_chain, ag_chain):
                                     and res_seq_num in cdr_range:
                         residue = model.cdr_list_has_res(cdrs[cdr_name], res_name, res_full_seq_num)
                         if residue is None:
-                            residue = Residue(res_name, res_seq_num, res_full_name, res_full_seq_num,
-                                              atom.x_coord, atom.y_coord, atom.z_coord)
+                            #residue = Residue(res_name, res_seq_num, res_full_name, res_full_seq_num,
+                            #                  atom.x_coord, atom.y_coord, atom.z_coord)
+                            residue = Residue(res_name, res_seq_num, res_full_name, res_full_seq_num)
                         residue.add_child(atom)
-                        residue.add_atom(atom)
+                        #residue.add_atom(atom)
                         model.add_residue(residue, cdr_name)
                 if " | " in ag_chain:
                     c1, c2 = ag_chain.split(" | ")
@@ -285,10 +273,11 @@ def get_pdb_structure(pdb_file_name, ab_h_chain, ab_l_chain, ag_chain):
                         model.add_agatom(atom)
                         residue = model.ag_list_has_res(ag[c1], res_name, res_full_seq_num)
                         if residue is None:
-                            residue = AGResidue(res_name, res_seq_num, res_full_name, res_full_seq_num,
-                                              atom.x_coord, atom.y_coord, atom.z_coord)
-                        residue.add_atom(atom)
-                        residue.add_atom(atom)
+                            #residue = AGResidue(res_name, res_seq_num, res_full_name, res_full_seq_num,
+                            #                  atom.x_coord, atom.y_coord, atom.z_coord)
+                            residue = Residue(res_name, res_seq_num, res_full_name, res_full_seq_num)
+                        residue.add_child(atom)
+                        #residue.add_atom(atom)
                         model.add_ag_residue(residue, c1)
                     """""
                     if chain_id == c2:
@@ -304,10 +293,11 @@ def get_pdb_structure(pdb_file_name, ab_h_chain, ab_l_chain, ag_chain):
                         model.add_agatom(atom)
                         residue = model.ag_list_has_res(ag[chain_id], res_name, res_full_seq_num)
                         if residue is None:
-                            residue = AGResidue(res_name, res_seq_num, res_full_name, res_full_seq_num,
-                                              atom.x_coord, atom.y_coord, atom.z_coord)
+                            #residue = AGResidue(res_name, res_seq_num, res_full_name, res_full_seq_num,
+                            #                  atom.x_coord, atom.y_coord, atom.z_coord)
+                            residue = Residue(res_name, res_seq_num, res_full_name, res_full_seq_num)
                         residue.add_child(atom)
-                        residue.add_atom(atom)
+                        #residue.add_atom(atom)
                         model.add_ag_residue(residue, chain_id)
 
     #print("model.ag", ag)

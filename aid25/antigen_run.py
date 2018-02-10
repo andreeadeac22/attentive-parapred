@@ -109,7 +109,7 @@ def antigen_run(cdrs_train, lbls_train, masks_train, lengths_train,
             lbls, _ = pad_packed_sequence(packed_lbls, batch_first=True)
 
 
-            output = model(input, unpacked_masks, ag_input, ag_masks)
+            output, _ = model(input, unpacked_masks, ag_input, ag_masks)
 
             loss_weights = (unpacked_lbls * 1.5 + 1) * unpacked_masks
             max_val = (-output).clamp(min=0)
@@ -134,7 +134,7 @@ def antigen_run(cdrs_train, lbls_train, masks_train, lengths_train,
 
         unpacked_masks_test2 = masks_test2
 
-        probs_test2 = model(cdrs_test2, unpacked_masks_test2, ag_test2, ag_masks_test2)
+        probs_test2, _= model(cdrs_test2, unpacked_masks_test2, ag_test2, ag_masks_test2)
 
         # K.mean(K.equal(lbls_test, K.round(y_pred)), axis=-1)
 
@@ -149,6 +149,8 @@ def antigen_run(cdrs_train, lbls_train, masks_train, lengths_train,
 
         print("Roc", roc_auc_score(lbls_test2, probs_test2))
 
+    print("Saving")
+
     torch.save(model.state_dict(), weights_template.format(weights_template_number))
 
     print("test", file=track_f)
@@ -161,12 +163,14 @@ def antigen_run(cdrs_train, lbls_train, masks_train, lengths_train,
     packed_input = pack_padded_sequence(masks_test, list(lengths_test), batch_first=True)
     masks_test, _ = pad_packed_sequence(packed_input, batch_first=True)
 
-    probs_test = model(cdrs_test, unpacked_masks_test, ag_test, ag_masks_test)
+    probs_test, _ = model(cdrs_test, unpacked_masks_test, ag_test, ag_masks_test)
 
     # K.mean(K.equal(lbls_test, K.round(y_pred)), axis=-1)
 
     sigmoid = nn.Sigmoid()
     probs_test = sigmoid(probs_test)
+
+    print("probs", probs_test, file=track_f)
 
     probs_test1 = probs_test.data.cpu().numpy().astype('float32')
     lbls_test1 = lbls_test.data.cpu().numpy().astype('int32')

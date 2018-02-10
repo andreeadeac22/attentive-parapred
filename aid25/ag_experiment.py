@@ -93,9 +93,9 @@ class AG(nn.Module):
 
         # MaxPool
         # print("agx after conv1", agx.shape)
-        agx = self.maxpool1(agx)
+        #agx = self.maxpool1(agx)
         # print("agx after pool1", agx.shape)
-        ag_unpacked_masks = self.maxpool1(ag_unpacked_masks)
+        #ag_unpacked_masks = self.maxpool1(ag_unpacked_masks)
 
         x = self.conv2(x)
         #print("x after conv2", x.data.shape)
@@ -120,9 +120,9 @@ class AG(nn.Module):
 
         # MaxPool
         # print("agx after conv1", agx.shape)
-        agx = self.maxpool1(agx)
+        #agx = self.maxpool1(agx)
         # print("agx after pool1", agx.shape)
-        ag_unpacked_masks = self.maxpool1(ag_unpacked_masks)
+        #ag_unpacked_masks = self.maxpool1(ag_unpacked_masks)
 
 
         x = self.conv3(x)
@@ -147,9 +147,9 @@ class AG(nn.Module):
 
         # MaxPool
         # print("agx after conv1", agx.shape)
-        agx = self.maxpool1(agx)
+        #agx = self.maxpool1(agx)
         # print("agx after pool1", agx.shape)
-        ag_unpacked_masks = self.maxpool1(ag_unpacked_masks)
+        #ag_unpacked_masks = self.maxpool1(ag_unpacked_masks)
 
         old = x
 
@@ -192,6 +192,6 @@ class AG(nn.Module):
 
         x = self.fc(x)
 
-        print("x after fc", x, file=track_f)
+        #print("x after fc", x, file=track_f)
 
-        return x
+        return x, w

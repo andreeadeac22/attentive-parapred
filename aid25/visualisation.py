@@ -4,9 +4,7 @@ import pickle
 import torch
 torch.set_printoptions(threshold=50000)
 import pandas as pd
-from Bio.PDB import Polypeptide
 from os.path import isfile, exists
-import numpy as np
 from torch.autograd import Variable
 from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence
 import torch.nn as nn
@@ -15,8 +13,9 @@ from constants import *
 from parsing import *
 from search import *
 from model import *
-from preprocessing import process_chains
+from preprocessing import process_chains, process_ag_chains
 from evaluation_tools import *
+from ag_experiment import *
 
 DATA_DIRECTORY = 'data/'
 PDBS_FORMAT = 'data/{}.pdb'
@@ -45,24 +44,36 @@ def build_the_pdb_data(pdb_name= visualisation_pdb):
             print(ab_l_chain)
             print(antigen_chain, file=visualisation_file)
 
-            cdrs, ag_atoms = get_pdb_structure(PDBS_FORMAT.format(pdb_name), ab_h_chain, ab_l_chain, antigen_chain)
+            cdrs, ag_atoms, ag, ag_names = get_pdb_structure(PDBS_FORMAT.format(pdb_name), ab_h_chain, ab_l_chain, antigen_chain)
+
+            ag_item = ag[ag_names[0]]
+            ag = {}
+
+            ag = {name: ag_item for name, item in cdrs.items()}
 
             data = {
                 "ab_h_chain": ab_h_chain,
                 "ab_l_chain":ab_l_chain,
                 "cdrs": cdrs,
+                "ag_name":ag_names[0],
+                "ag":ag
             }
 
             with open(vis_dataset_file, "wb") as write_file:
                 pickle.dump(data, write_file, protocol=2)
 
-            ag_search = NeighbourSearch(ag_atoms)  # replace this
+
+            ag_search = NeighbourSearch(ag_atoms)
             cdrs, lbls, masks, (numresidues, numincontact), lengths = process_chains(ag_search, cdrs,
                                                                                      max_cdr_length=MAX_CDR_LENGTH)
+            ag, ag_masks, ag_length = process_ag_chains(ag, max_ag_length=MAX_AG_LENGTH)
 
             cdrs = Variable(torch.Tensor(cdrs))
             lbls = Variable(torch.Tensor(lbls))
             masks = Variable(torch.Tensor(masks))
+
+            ag = Variable(torch.Tensor(ag))
+            ag_masks = Variable(torch.Tensor(ag_masks))
 
             dataset = {
                 "cdrs" : cdrs,
@@ -70,11 +81,14 @@ def build_the_pdb_data(pdb_name= visualisation_pdb):
                 "masks" : masks,
                 "max_cdr_len": MAX_CDR_LENGTH,
                 "pos_class_weight" : numresidues/numincontact,
-                "lengths": lengths
+                "lengths": lengths,
+                "ag": ag,
+                "ag_masks": ag_masks
             }
             return dataset
 
 default_out_file_name = visualisation_pdb+"_copy.pdb"
+ag_default_out_file_name = visualisation_pdb+"_ag_copy.pdb"
 
 def divide(cdrs, probs):
     if use_cuda:
@@ -83,7 +97,7 @@ def divide(cdrs, probs):
     cdrs = cdrs.data
     probs = probs.data.numpy()
     for i in range(6):
-        if cdrs[i][0][28]>0:
+        if cdrs[i][0][28]>0:   # 28-33: one-hot encoding of chain
             probs_h1 = probs[i]
         if cdrs[i][0][29]>0:
             probs_h2 = probs[i]
@@ -128,7 +142,7 @@ def get_residue_numbers(vis_cdrs):
 
 def print_probabilities(out_file_name = default_out_file_name):
     model = AbSeqModel()
-    model.load_state_dict(torch.load("cv-ab-seq/weights/run-0-fold-9.pth.tar"))
+    model.load_state_dict(torch.load("cv-ab-seq/weights/run-0-fold-1.pth.tar"))
 
     if use_cuda:
         model.cuda()
@@ -218,7 +232,7 @@ def print_probabilities(out_file_name = default_out_file_name):
                     if prev_h1_res == current_h1_res:
                         new_line = line[0:60]
                         prob = probs_h1[probs_h1_counter]
-                        prob = '%.3f' % prob
+                        prob = '%.4f' % prob
                         new_line += prob
                         new_line += line[66:79]
                         new_line += "\n"
@@ -231,7 +245,7 @@ def print_probabilities(out_file_name = default_out_file_name):
                     if prev_h2_res == current_h2_res:
                         new_line = line[0:60]
                         prob = probs_h2[probs_h2_counter]
-                        prob = '%.3f' % prob
+                        prob = '%.4f' % prob
                         new_line += prob
                         new_line += line[66:79]
                         new_line += "\n"
@@ -244,7 +258,7 @@ def print_probabilities(out_file_name = default_out_file_name):
                     if prev_h3_res == current_h3_res:
                         new_line = line[0:60]
                         prob = probs_h3[probs_h3_counter]
-                        prob = '%.3f' % prob
+                        prob = '%.4f' % prob
                         new_line += prob
                         new_line += line[66:79]
                         new_line += "\n"
@@ -258,7 +272,7 @@ def print_probabilities(out_file_name = default_out_file_name):
                     if prev_l1_res == current_l1_res:
                         new_line = line[0:60]
                         prob = probs_l1[probs_l1_counter]
-                        prob = '%.3f' % prob
+                        prob = '%.4f' % prob
                         new_line += prob
                         new_line += line[66:79]
                         new_line += "\n"
@@ -271,7 +285,7 @@ def print_probabilities(out_file_name = default_out_file_name):
                     if prev_l2_res == current_l2_res:
                         new_line = line[0:60]
                         prob = probs_l2[probs_l2_counter]
-                        prob = '%.3f' % prob
+                        prob = '%.4f' % prob
                         new_line += prob
                         new_line += line[66:79]
                         new_line += "\n"
@@ -284,7 +298,7 @@ def print_probabilities(out_file_name = default_out_file_name):
                     if prev_l3_res == current_l3_res:
                         new_line = line[0:60]
                         prob = probs_l3[probs_l3_counter]
-                        prob = '%.3f' % prob
+                        prob = '%.4f' % prob
                         new_line += prob
                         new_line += line[66:79]
                         new_line += "\n"
@@ -294,7 +308,7 @@ def print_probabilities(out_file_name = default_out_file_name):
             if new_line == line:
                 new_line = line[0:60]
                 prob = 0.0
-                prob = '%.3f' % prob
+                prob = '%.4f' % prob
                 new_line += prob
                 new_line += line[66:79]
                 new_line += "\n"
@@ -302,8 +316,165 @@ def print_probabilities(out_file_name = default_out_file_name):
         else:
             new_line = line[0:60]
             prob = 0.0
-            prob = '%.3f' % prob
+            prob = '%.4f' % prob
             new_line += prob
             new_line += line[66:79]
             new_line += "\n"
             append_file.write(new_line)
+
+def print_ag_weights(out_file_name = ag_default_out_file_name):
+    print("in ag visual")
+    model = AG()
+    model.load_state_dict(torch.load("cv-ab-seq/run-0-fold-0.pth.tar"))
+    model.eval()
+
+    if use_cuda:
+        model.cuda()
+
+    print("writing to visualisation file")
+    vis_dataset = build_the_pdb_data(visualisation_pdb)
+    vis_cdrs, vis_masks, vis_lbls, vis_lengths, vis_ag, vis_ag_masks = \
+        vis_dataset["cdrs"], vis_dataset["masks"], vis_dataset["lbls"], vis_dataset["lengths"], \
+        vis_dataset["ag"], vis_dataset["ag_masks"]
+
+    # i shouldn't have to sort anymore - no rnn/lstm
+    #vis_cdrs, vis_masks, vis_lengths, vis_lbls, vis_index, vis_ag, vis_ag_masks = \
+    #    ag_vis_sort_batch(vis_cdrs, vis_masks, list(vis_lengths), vis_lbls, vis_ag, vis_ag_masks)
+
+    vis_probs, weights = model(vis_cdrs, vis_masks, vis_ag, vis_ag_masks)
+
+    sigmoid = nn.Sigmoid()
+    vis_probs = sigmoid(vis_probs)
+
+    # unsort
+    #vis_probs = torch.index_select(vis_probs, 0, vis_index)
+    #vis_cdrs = torch.index_select(vis_cdrs, 0, vis_index)
+
+    print("Vis probs", file=track_f)
+    print("vis_probs", vis_probs, file=track_f)
+    print("vis_weights", weights[1][2], file=track_f)
+
+    values, indices = vis_probs.max(0)
+    values1, pos2 = values.max(0)
+    pos2 = pos2[0]
+    pos1 = indices[pos2]
+    pos1 = pos1[0]
+
+    print("pos1", pos1)
+    print("pos2", pos2)
+
+    weights = weights[pos1][0]
+    weights = weights[pos2][0]
+
+    if exists(vis_dataset_file) and isfile(vis_dataset_file):
+        with open(vis_dataset_file, "rb") as read_file:
+            dataset = pickle.load(read_file)
+    ab_h_chain = dataset["ab_h_chain"]
+    ab_l_chain = dataset["ab_l_chain"]
+    ag_chain = dataset["ag_name"]
+
+    print("ab_chain", ab_h_chain)
+    print("ag_chain", ag_chain)
+
+    vis_cdrs_h1_numbers, vis_cdrs_h2_numbers, vis_cdrs_h3_numbers, \
+    vis_cdrs_l1_numbers, vis_cdrs_l2_numbers, vis_cdrs_l3_numbers = get_residue_numbers(dataset["cdrs"])
+
+    print("vis_cdrs_h1_numbers", vis_cdrs_h1_numbers)
+    print("vis_cdrs_h2_numbers", vis_cdrs_h2_numbers)
+    print("vis_cdrs_h3_numbers", vis_cdrs_h3_numbers)
+
+    print("vis_cdrs_l1_numbers", vis_cdrs_l1_numbers)
+    print("vis_cdrs_l2_numbers", vis_cdrs_l2_numbers)
+    print("vis_cdrs_l3_numbers", vis_cdrs_l3_numbers)
+
+    #print("vis_parapred_cdrs", vis_pcdrs)
+    # print("vis_probs", vis_probs)
+
+    probs_h1, probs_h2, probs_h3, probs_l1, probs_l2, probs_l3 = divide(vis_cdrs, vis_probs)
+
+    #TODO: fix this - only put 1 in res with highest prob and 0 everywhere else
+
+    if pos1[0] == 0:
+        vis_cdrs_numbers = vis_cdrs_h1_numbers
+    elif pos1 == 1:
+        vis_cdrs_numbers = vis_cdrs_h2_numbers
+    elif pos1 == 2:
+        vis_cdrs_numbers = vis_cdrs_h3_numbers
+    elif pos1 == 3:
+        vis_cdrs_numbers = vis_cdrs_l1_numbers
+    elif pos1 == 4:
+        vis_cdrs_numbers = vis_cdrs_l2_numbers
+    elif pos1 == 5:
+        vis_cdrs_numbers = vis_cdrs_l3_numbers
+
+    atom = 0
+    probs_counter = -1
+    probs_ag_counter = -1
+
+    prev_res = ""
+    prev_ag_res = ""
+
+    append_file = open(out_file_name, "w+")
+    in_file = open(visualisation_pdb_file_name, 'r')
+
+    for line in in_file:
+        if line.startswith('ATOM') or line.startswith('HETATM'):
+            # print("atom")
+            atom += 1
+            res_name = line[17:20]
+            res_full_name = line[16:20]
+            chain_id = line[21]
+            res_seq_num = int(line[22:26])
+            new_line = line
+            if chain_id == ab_h_chain:
+                if res_seq_num in vis_cdrs_numbers:
+                    current_res = res_full_name
+                    if prev_h1_res == current_res:
+                        if probs_counter == pos2:
+                            new_line = line[0:60]
+                            prob = 1.00
+                            prob = '%.4f' % prob
+                            new_line += prob
+                            new_line += line[66:79]
+                            new_line += "\n"
+                    else:
+                        probs_counter += 1
+                        prev_h1_res = current_res
+
+            if chain_id == ag_chain:
+                #print("ag_chain")
+                current_ag_res = res_full_name
+                if prev_ag_res == current_ag_res:
+                    new_line = line[0:60]
+                    #print("pos1", pos1[0])
+                    #print("pos2", pos2[0])
+                    #print("probs_counter", probs_ag_counter)
+
+                    #print(weights)
+                    prob = weights[probs_ag_counter] # this needs to be weight[1][2]
+                    prob = '%.4f' % prob
+                    new_line += prob
+                    new_line += line[66:79]
+                    new_line += "\n"
+                else:
+                    probs_ag_counter += 1
+                    prev_ag_res = current_ag_res
+
+            if new_line == line:
+                new_line = line[0:60]
+                prob = 0.0
+                prob = '%.4f' % prob
+                new_line += prob
+                new_line += line[66:79]
+                new_line += "\n"
+            append_file.write(new_line)
+        else:
+            new_line = line[0:60]
+            prob = 0.0
+            prob = '%.4f' % prob
+            new_line += prob
+            new_line += line[66:79]
+            new_line += "\n"
+            append_file.write(new_line)
+
+print_ag_weights()
