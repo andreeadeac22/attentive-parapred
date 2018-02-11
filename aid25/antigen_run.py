@@ -16,10 +16,10 @@ from evaluation_tools import *
 from ag_experiment import *
 
 def antigen_run(cdrs_train, lbls_train, masks_train, lengths_train,
-               ag_train, ag_masks_train, ag_lengths_train,
+               ag_train, ag_masks_train, ag_lengths_train, dist_mat_train,
                weights_template, weights_template_number,
                cdrs_test, lbls_test, masks_test, lengths_test,
-               ag_test, ag_masks_test, ag_lengths_test):
+               ag_test, ag_masks_test, ag_lengths_test, dist_test):
 
     print("dilated run", file=print_file)
     model = AG()
@@ -48,6 +48,7 @@ def antigen_run(cdrs_train, lbls_train, masks_train, lengths_train,
     total_lbls = lbls_train
     total_masks = masks_train
     total_lengths = lengths_train
+    total_dist_train = dist_mat_train
 
     total_ag_input = ag_train
     total_ag_masks = ag_masks_train
@@ -68,6 +69,9 @@ def antigen_run(cdrs_train, lbls_train, masks_train, lengths_train,
         ag_test = ag_test.cuda()
         ag_masks_test = ag_masks_test.cuda()
 
+        total_dist_train = total_dist_train.cuda()
+        dist_test = dist_test.cuda()
+
     for epoch in range(epochs):
         model.train(True)
         scheduler.step()
@@ -75,9 +79,10 @@ def antigen_run(cdrs_train, lbls_train, masks_train, lengths_train,
 
         batches_done=0
 
-        total_input, total_masks, total_lengths, total_lbls, total_ag_input, total_ag_masks, total_ag_lengths= \
+        total_input, total_masks, total_lengths, total_lbls,\
+        total_ag_input, total_ag_masks, total_ag_lengths, total_dist_train = \
             permute_training_ag_data(total_input, total_masks, total_lengths, total_lbls,
-                                     total_ag_input, total_ag_masks, total_ag_lengths)
+                                     total_ag_input, total_ag_masks, total_ag_lengths, total_dist_train)
 
         for j in range(0, cdrs_train.shape[0], batch_size):
             batches_done +=1
@@ -87,56 +92,42 @@ def antigen_run(cdrs_train, lbls_train, masks_train, lengths_train,
                 interval = interval.cuda()
 
             input = Variable(index_select(total_input, 0, interval), requires_grad=True)
+            lbls = Variable(index_select(total_lbls, 0, interval))
             masks = Variable(index_select(total_masks, 0, interval))
             lengths = total_lengths[j:j + batch_size]
 
             ag_input = Variable(index_select(total_ag_input, 0, interval), requires_grad=True)
             ag_masks = Variable(index_select(total_ag_masks, 0, interval))
 
-            lbls = Variable(index_select(total_lbls, 0, interval))
+            dist = Variable(index_select(total_dist_train, 0, interval))
 
-            input, masks, lengths, lbls, ag, ag_masks = \
-                sort_ag_batch(input, masks, list(lengths), lbls, ag_input, ag_masks)
+            input, masks, lengths, lbls, ag, ag_masks, dist = \
+                sort_ag_batch(input, masks, list(lengths), lbls, ag_input, ag_masks, dist)
 
-            unpacked_masks = masks
+            output, _ = model(input, masks, ag_input, ag_masks, dist)
 
-            packed_masks = pack_padded_sequence(masks, lengths, batch_first=True)
-            masks, _ = pad_packed_sequence(packed_masks, batch_first=True)
-
-            unpacked_lbls = lbls
-
-            packed_lbls = pack_padded_sequence(lbls, lengths, batch_first=True)
-            lbls, _ = pad_packed_sequence(packed_lbls, batch_first=True)
-
-
-            output, _ = model(input, unpacked_masks, ag_input, ag_masks)
-
-            loss_weights = (unpacked_lbls * 1.5 + 1) * unpacked_masks
+            loss_weights = (lbls * 1.5 + 1) * masks
             max_val = (-output).clamp(min=0)
             loss = loss_weights * \
-                   (output - output * unpacked_lbls + max_val + ((-max_val).exp() + (-output - max_val).exp()).log())
+                   (output - output * lbls + max_val + ((-max_val).exp() + (-output - max_val).exp()).log())
             masks_added = masks.sum()
             loss = loss.sum() / masks_added
-
             #print("Epoch %d - Batch %d has loss %d " % (epoch, j, loss.data), file=monitoring_file)
             epoch_loss +=loss
-
             model.zero_grad()
-
             loss.backward()
             optimizer.step()
+
         print("Epoch %d - loss is %f : " % (epoch, epoch_loss.data[0]/batches_done))
 
         model.eval()
 
-        cdrs_test2, masks_test2, lengths_test2, lbls_test2, ag_test2, ag_masks_test2 = \
-            sort_ag_batch(cdrs_test, masks_test, list(lengths_test), lbls_test, ag_test, ag_masks_test)
+        cdrs_test2, masks_test2, lengths_test2, lbls_test2, ag_test2, ag_masks_test2, dist_test2 = \
+            sort_ag_batch(cdrs_test, masks_test, list(lengths_test), lbls_test, ag_test, ag_masks_test, dist_test)
 
-        unpacked_masks_test2 = masks_test2
 
-        probs_test2, _= model(cdrs_test2, unpacked_masks_test2, ag_test2, ag_masks_test2)
+        probs_test2, _= model(cdrs_test2, masks_test2, ag_test2, ag_masks_test2, dist_test2)
 
-        # K.mean(K.equal(lbls_test, K.round(y_pred)), axis=-1)
 
         sigmoid = nn.Sigmoid()
         probs_test2 = sigmoid(probs_test2)
@@ -153,19 +144,13 @@ def antigen_run(cdrs_train, lbls_train, masks_train, lengths_train,
 
     torch.save(model.state_dict(), weights_template.format(weights_template_number))
 
-    print("test", file=track_f)
     model.eval()
 
-    cdrs_test, masks_test, lengths_test, lbls_test, ag_test, ag_masks_test = \
-        sort_ag_batch(cdrs_test, masks_test, list(lengths_test), lbls_test, ag_test, ag_masks_test)
+    cdrs_test, masks_test, lengths_test, lbls_test, ag_test, ag_masks_test, dist_test = \
+        sort_ag_batch(cdrs_test, masks_test, list(lengths_test), lbls_test, ag_test, ag_masks_test, dist_test)
 
-    unpacked_masks_test = masks_test
-    packed_input = pack_padded_sequence(masks_test, list(lengths_test), batch_first=True)
-    masks_test, _ = pad_packed_sequence(packed_input, batch_first=True)
+    probs_test, _ = model(cdrs_test, masks_test, ag_test, ag_masks_test, dist_test)
 
-    probs_test, _ = model(cdrs_test, unpacked_masks_test, ag_test, ag_masks_test)
-
-    # K.mean(K.equal(lbls_test, K.round(y_pred)), axis=-1)
 
     sigmoid = nn.Sigmoid()
     probs_test = sigmoid(probs_test)

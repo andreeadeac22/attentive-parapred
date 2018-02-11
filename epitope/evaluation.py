@@ -12,22 +12,15 @@ from torch import index_select
 from sklearn.metrics import confusion_matrix, roc_auc_score, matthews_corrcoef
 import pickle
 
-from atrous_run import *
-from attentionRNN_run import *
-from parapred_run import *
-from antigen_run import *
+from epitope_run import *
 
 def kfold_cv_eval(dataset, output_file="crossval-data.p",
                   weights_template="weights-fold-{}.h5", seed=0):
-    cdrs, lbls, masks, lengths, ag, ag_masks, ag_lengths, dist_mat = \
-        dataset["cdrs"], dataset["lbls"], dataset["masks"], dataset["lengths"],\
-        dataset["ag"], dataset["ag_masks"], dataset["ag_lengths"], dataset["dist_mat"]
+    ag, lbls, masks, lengths = dataset["ag"], dataset["ag_lbls"], dataset["ag_masks"], dataset["ag_lengths"]
 
-
-    print("cdrs", cdrs.shape)
-    #print("lbls", lbls, file=data_file)
-    #print("masks", masks, file=data_file)
-    #print("lengths", lengths, file=data_file)
+    print("ag", ag.shape)
+    print("lbls", lbls.shape)
+    print("masks", masks.shape)
 
     kf = KFold(n_splits=NUM_SPLIT, random_state=seed, shuffle=True)
 
@@ -38,59 +31,30 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
     all_probs1 = []
     all_lbls1 = []
 
-    for i, (train_idx, test_idx) in enumerate(kf.split(cdrs)):
+    for i, (train_idx, test_idx) in enumerate(kf.split(ag)):
         print("Fold: ", i + 1)
-        #print(train_idx, )
-        #print(test_idx)
 
         lengths_train = [lengths[i] for i in train_idx]
         lengths_test = [lengths[i] for i in test_idx]
-
-        ag_lengths_train = [ag_lengths[i] for i in train_idx]
-        ag_lengths_test = [ag_lengths[i] for i in test_idx]
-
-        #print("train_idx", train_idx)
 
         print("len(train_idx",len(train_idx))
 
         train_idx = torch.from_numpy(train_idx)
         test_idx = torch.from_numpy(test_idx)
 
-        cdrs_train = index_select(cdrs, 0, train_idx)
-        lbls_train = index_select(lbls, 0, train_idx)
-        mask_train = index_select(masks, 0, train_idx)
         ag_train = index_select(ag, 0, train_idx)
-        ag_masks_train = index_select(ag_masks, 0, train_idx)
-        dist_mat_train = index_select(dist_mat, 0, train_idx)
+        lbls_train = index_select(lbls, 0, train_idx)
+        masks_train = index_select(masks, 0, train_idx)
 
-        cdrs_test = Variable(index_select(cdrs, 0, test_idx))
-        lbls_test = Variable(index_select(lbls, 0, test_idx))
-        mask_test = Variable(index_select(masks, 0, test_idx))
         ag_test = Variable(index_select(ag, 0, test_idx))
-        ag_masks_test = Variable(index_select(ag_masks, 0, test_idx))
-        dist_mat_test = Variable(index_select(dist_mat, 0, test_idx))
+        lbls_test = Variable(index_select(lbls, 0, test_idx))
+        masks_test = Variable(index_select(masks, 0, test_idx))
 
-        code = 4
+        code = 1
         if code ==1:
             probs_test1, lbls_test1, probs_test2, lbls_test2 = \
-                simple_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
-                                    cdrs_test, lbls_test, mask_test, lengths_test)
-        if code == 2:
-            probs_test1, lbls_test1, probs_test2, lbls_test2 = \
-                attention_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
-                              cdrs_test, lbls_test, mask_test, lengths_test)
-
-        if code == 3:
-            probs_test1, lbls_test1, probs_test2, lbls_test2 = \
-                atrous_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
-                                     cdrs_test, lbls_test, mask_test, lengths_test)
-
-        if code == 4:
-            probs_test1, lbls_test1, probs_test2, lbls_test2 = \
-                antigen_run(cdrs_train, lbls_train, mask_train, lengths_train,
-                            ag_train, ag_masks_train, ag_lengths_train, dist_mat_train, weights_template, i,
-                           cdrs_test, lbls_test, mask_test, lengths_test,
-                            ag_test, ag_masks_test, ag_lengths_test, dist_mat_test)
+                epitope_run(ag_train, lbls_train, masks_train, lengths_train, weights_template, i,
+                                    ag_test, lbls_test, masks_test, lengths_test)
 
         print("test", file=track_f)
 
@@ -98,7 +62,7 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
         all_lbls2 = np.concatenate((all_lbls2, lbls_test2))
         all_lbls1.append(lbls_test1)
 
-        probs_test_pad = torch.zeros(probs_test1.data.shape[0], MAX_CDR_LENGTH, probs_test1.data.shape[2])
+        probs_test_pad = torch.zeros(probs_test1.data.shape[0], MAX_AG_LENGTH, probs_test1.data.shape[2])
         probs_test_pad[:probs_test1.data.shape[0], :probs_test1.data.shape[1], :] = probs_test1.data
         probs_test_pad = Variable(probs_test_pad)
 
@@ -110,7 +74,7 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
 
         all_probs1.append(probs_test_pad)
 
-        all_masks.append(mask_test)
+        all_masks.append(masks_test)
 
     lbl_mat1 = torch.cat(all_lbls1)
     prob_mat1 = torch.cat(all_probs1)
@@ -125,13 +89,19 @@ def helper_compute_metrics(matrices, aucs, mcorrs):
     mean_conf = np.mean(matrices, axis=0)
     errs_conf = 2 * np.std(matrices, axis=0)
 
+    tns = matrices[:, 0, 0]
     tps = matrices[:, 1, 1]
     fns = matrices[:, 1, 0]
     fps = matrices[:, 0, 1]
 
+    tnsf = tns.astype(float)
     tpsf = tps.astype(float)
     fnsf = fns.astype(float)
     fpsf = fps.astype(float)
+
+    print("tnsf", tnsf)
+    print("tpsf", tpsf)
+    print("fnsf", fnsf)
 
     recalls = tpsf / (tpsf + fnsf)
     precisions = tpsf / (tpsf + fpsf)
@@ -176,6 +146,8 @@ def compute_classifier_metrics(labels, probs, labels1, probs1, threshold=0.5):
     mcorrs = []
     mcorrs1 = []
 
+    all_l_pred = []
+
     #print("labels", labels)
     #print("probs", probs)
 
@@ -195,6 +167,9 @@ def compute_classifier_metrics(labels, probs, labels1, probs1, threshold=0.5):
         l_pred1 = (p1 > threshold).astype(int)
         matrices1.append(confusion_matrix(l1, l_pred1))
         mcorrs1.append(matthews_corrcoef(l1, l_pred1))
+        all_l_pred.append(l_pred1)
+
+    print("all_l_pred", all_l_pred, file=track_f)
 
     print("Metrics with the original version")
     helper_compute_metrics(matrices=matrices,  aucs=aucs2, mcorrs =mcorrs )

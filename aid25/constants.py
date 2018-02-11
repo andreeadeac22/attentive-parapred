@@ -11,6 +11,16 @@ chothia_cdr_def = { "L1" : (24, 34), "L2" : (50, 56), "L3" : (89, 97),
                     "H1" : (26, 32), "H2" : (52, 56), "H3" : (95, 102) }
 cdr_names = ["H1", "H2", "H3", "L1", "L2", "L3"]
 
+aa_s = "CSTPAGNDEQHRKMILVFYWU" # U for unknown
+
+NUM_EXTRA_RESIDUES = 2 # The number of extra residues to include on the either side of a CDR
+CONTACT_DISTANCE = 4.5 # Contact distance between atoms in Angstroms
+
+AG_DISTANCE = 15
+
+NUM_FEATURES = len(aa_s) + 7 + 6 # one-hot + extra features + chain one-hot
+AG_NUM_FEATURES = len(aa_s) + 7
+
 NUM_ITERATIONS = 1
 NUM_SPLIT = 3
 

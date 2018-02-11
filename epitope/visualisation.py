@@ -392,6 +392,21 @@ def print_ag_weights(out_file_name = ag_default_out_file_name):
 
     probs_h1, probs_h2, probs_h3, probs_l1, probs_l2, probs_l3 = divide(vis_cdrs, vis_probs)
 
+    #TODO: fix this - only put 1 in res with highest prob and 0 everywhere else
+
+    if pos1[0] == 0:
+        vis_cdrs_numbers = vis_cdrs_h1_numbers
+    elif pos1 == 1:
+        vis_cdrs_numbers = vis_cdrs_h2_numbers
+    elif pos1 == 2:
+        vis_cdrs_numbers = vis_cdrs_h3_numbers
+    elif pos1 == 3:
+        vis_cdrs_numbers = vis_cdrs_l1_numbers
+    elif pos1 == 4:
+        vis_cdrs_numbers = vis_cdrs_l2_numbers
+    elif pos1 == 5:
+        vis_cdrs_numbers = vis_cdrs_l3_numbers
+
     atom = 0
     probs_counter = -1
     probs_ag_counter = -1
@@ -411,11 +426,10 @@ def print_ag_weights(out_file_name = ag_default_out_file_name):
             chain_id = line[21]
             res_seq_num = int(line[22:26])
             new_line = line
-            """
             if chain_id == ab_h_chain:
-                if res_seq_num in vis_cdrs_h1_numbers:
+                if res_seq_num in vis_cdrs_numbers:
                     current_res = res_full_name
-                    if prev_res == current_res:
+                    if prev_h1_res == current_res:
                         if probs_counter == pos2:
                             new_line = line[0:60]
                             prob = 1.00
@@ -425,8 +439,8 @@ def print_ag_weights(out_file_name = ag_default_out_file_name):
                             new_line += "\n"
                     else:
                         probs_counter += 1
-                        prev_res = current_res
-            """
+                        prev_h1_res = current_res
+
             if chain_id == ag_chain:
                 #print("ag_chain")
                 current_ag_res = res_full_name
@@ -463,4 +477,4 @@ def print_ag_weights(out_file_name = ag_default_out_file_name):
             new_line += "\n"
             append_file.write(new_line)
 
-#print_ag_weights()
+print_ag_weights()

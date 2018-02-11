@@ -65,7 +65,7 @@ class AG(nn.Module):
             torch.nn.init.xavier_uniform(m.weight.data)
             m.bias.data.fill_(0.0)
 
-    def forward(self, ab_input, ab_unpacked_masks, ag_input, ag_unpacked_masks):
+    def forward(self, ab_input, ab_unpacked_masks, ag_input, ag_unpacked_masks, dist):
         x=ab_input
         agx = ag_input
 
@@ -156,7 +156,8 @@ class AG(nn.Module):
         oldag = agx
 
         heads_no = 1
-        bias_mat = 1e9 * (ag_unpacked_masks - 1.0)
+        #bias_mat = 1e9 * (ag_unpacked_masks - 1.0)
+        dist_mat = 1e9 * (dist - 1.0)
 
         for i in range(heads_no):
             #agconvi = nn.Conv1d(256, 128, 1)
@@ -170,7 +171,7 @@ class AG(nn.Module):
             w_1 = aconvi1(x)
             w_2 = aconvi2(agx)
             w = self.lrelu(w_2 + torch.transpose(w_1, 1, 2))
-            w = self.softmax(w + bias_mat)
+            w = self.softmax(w + dist_mat)
             w = self.dropout(w)
             temp_loop_x = torch.bmm(w, torch.transpose(agx, 1, 2))
             if i==0:
