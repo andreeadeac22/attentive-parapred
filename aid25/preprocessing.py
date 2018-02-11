@@ -19,7 +19,6 @@ CSV_NAME = 'sabdab_27_jun_95_90.csv'
 data_frame = pd.read_csv(DATA_DIRECTORY + CSV_NAME)
 
 def load_chains(csv_file):
-    print("in load_chains", file=f)
     print("in load_chains")
     i=0
     for _, column in csv_file.iterrows():
@@ -29,37 +28,14 @@ def load_chains(csv_file):
         ab_h_chain = column['Hchain']
         ab_l_chain = column['Lchain']
         antigen_chain = column['antigen_chain']
-        print(pdb_name)
-        print(pdb_name, file=f)
-        print(ab_h_chain, file=f)
-        print(ab_l_chain, file=f)
-        print(antigen_chain, file=f)
         cdrs, ag_atoms, ag, ag_names = get_pdb_structure(PDBS_FORMAT.format(pdb_name), ab_h_chain, ab_l_chain, antigen_chain)
 
-        cdr_chain_num = 0
-        maxi = 0
-        dist_mat = torch.zeros(6, MAX_CDR_LENGTH, MAX_AG_LENGTH)
-        for cdr_name, cdr_chain in cdrs.items():
-            for ag_name, ag_chain in ag.items():
-                ag_num = 0
-                for ag_res in ag_chain:
-                    ags = NeighbourSearch(ag_res.get_unpacked_list())
-                    cdr_num = 0
-                    for cdr_res in cdr_chain:
-                        dist_mat[cdr_chain_num][cdr_num][ag_num] = residue_in_contact_with(cdr_res, ags, AG_DISTANCE)
-                        sum_ag_res = sum(dist_mat[cdr_chain_num][cdr_num][:])
-                        if sum_ag_res > maxi:
-                            maxi = sum_ag_res
-                        cdr_num += 1
-                    ag_num += 1
-            cdr_chain_num +=1
-
-        ag_item = ag[ag_names[0]]
-        ag = {name: ag_item for name, item in cdrs.items()}
+        #ag_item = ag[ag_names[0]]
+        #ag = {name: ag_item for name, item in cdrs.items()}
 
         ag_search = NeighbourSearch(ag_atoms)  # replace this
 
-        yield ag_search, cdrs, pdb_name, ag, dist_mat, maxi
+        yield ag_search, cdrs, pdb_name, ag
         i = i + 1
 
 def residue_in_contact_with(res, c_search, dist):
@@ -161,6 +137,103 @@ def find_chain(cdr_name):
         #print("L3")
         return [0, 0, 0, 0, 0, 1]
 
+def complex_process_chains(ag_search, cdrs, max_cdr_length, ag, max_ag_length):
+    num_residues = 0
+    num_in_contact = 0
+    contact = {}
+
+    for cdr_name, cdr_chain in cdrs.items():
+        contact[cdr_name] =  [residue_in_contact_with(res, ag_search, CONTACT_DISTANCE) for res in cdr_chain]
+        num_residues += len(contact[cdr_name])
+        num_in_contact += sum(contact[cdr_name])
+
+    if num_in_contact < 5:
+        print("Antibody has very few contact residues: ", num_in_contact, file=f)
+
+    cdr_mats = []
+    cont_mats = []
+    cdr_masks = []
+    lengths = []
+
+    ag_mats = []
+    ag_masks = []
+    ag_lengths = []
+
+    all_dist_mat = []
+
+    for ag_name, ag_chain in ag.items():
+        # Converting residues to amino acid sequences
+        agc = residue_seq_to_one(ag[ag_name])
+        ag_mat = ag_seq_to_one_hot(agc)
+        ag_mat_pad = torch.zeros(max_ag_length, AG_NUM_FEATURES)
+        ag_mat_pad[:ag_mat.shape[0], :] = ag_mat
+        ag_mask = torch.zeros(max_ag_length, 1)
+        ag_mask[:len(agc), 0] = 1
+
+        cdr_chain_num=0
+        maxi = 0
+        for cdr_name in ["H1", "H2", "H3", "L1", "L2", "L3"]:
+            # Converting residues to amino acid sequences
+            # cdr_coords = coords(cdrs[cdr_name])
+            cdr_chain = cdrs[cdr_name]
+            enc_cdr_chain = residue_seq_to_one(cdrs[cdr_name])
+            chain_encoding = find_chain(cdr_name)
+            cdr_mat = seq_to_one_hot(enc_cdr_chain, chain_encoding)
+            cdr_mat_pad = torch.zeros(max_cdr_length, NUM_FEATURES)
+
+            if cdr_mat is not None:
+                dist_mat = torch.zeros(MAX_CDR_LENGTH, MAX_AG_LENGTH)
+                ag_num = 0
+                for ag_res in ag_chain:
+                    ags = NeighbourSearch(ag_res.get_unpacked_list())
+                    cdr_num = 0
+                    for cdr_res in cdr_chain:
+                        dist_mat[cdr_num][ag_num] = residue_in_contact_with(cdr_res, ags, AG_DISTANCE)
+                        sum_ag_res = sum(dist_mat[cdr_num][:])
+                        if sum_ag_res > maxi:
+                            maxi = sum_ag_res
+                        cdr_num += 1
+                    ag_num += 1
+
+                # print("cdr_mat", cdr_mat)
+                cdr_mat_pad[:cdr_mat.shape[0], :] = cdr_mat
+                cdr_mats.append(cdr_mat_pad)
+                lengths.append(cdr_mat.shape[0])
+
+                if len(contact[cdr_name]) > 0:
+                    cont_mat = torch.FloatTensor(contact[cdr_name])
+                    cont_mat_pad = torch.zeros(max_cdr_length, 1)
+                    cont_mat_pad[:cont_mat.shape[0], 0] = cont_mat
+                else:
+                    cont_mat_pad = torch.zeros(max_cdr_length, 1)
+                cont_mats.append(cont_mat_pad)
+
+                cdr_mask = torch.zeros(max_cdr_length, 1)
+                if len(enc_cdr_chain) > 0:
+                    cdr_mask[:len(enc_cdr_chain), 0] = 1
+                cdr_masks.append(cdr_mask)
+
+                ag_mats.append(ag_mat_pad)
+                ag_lengths.append(ag_mat.shape[0])
+                ag_masks.append(ag_mask)
+                cdr_chain_num +=1
+                all_dist_mat.append(dist_mat)
+
+    cdrs = torch.stack(cdr_mats)
+    lbls = torch.stack(cont_mats)
+    masks = torch.stack(cdr_masks)
+
+    ag = torch.stack(ag_mats)
+    ag_masks = torch.stack(ag_masks)
+
+    dist_mat = torch.stack(all_dist_mat)
+
+    #print("cdrs shape", cdrs.shape)
+    #print("ag shape", ag.shape)
+    #print("dist", dist_mat.shape)
+
+    return cdrs, lbls, masks, (num_residues, num_in_contact), lengths, ag, ag_masks, ag_lengths, dist_mat, maxi
+
 def process_ag_chains(ag, max_ag_length):
     ag_mats = []
     ag_masks = []
@@ -261,12 +334,15 @@ def process_dataset(csv_file):
 
     all_dist_mat = []
     all_max = 0
-    for ag_search, cdrs, pdb, ag, dist_mat, maxi in load_chains(csv_file):
-        print("Processing PDB ", pdb, file=f)
+    for ag_search, cdrs, pdb, ag in load_chains(csv_file):
         print("Processing PDB ", pdb)
 
-        cdrs, lbls, masks, (numresidues, numincontact), lengths = process_chains(ag_search, cdrs, max_cdr_length = MAX_CDR_LENGTH)
-        ag, ag_masks, ag_length = process_ag_chains(ag, max_ag_length=MAX_AG_LENGTH)
+        #cdrs, lbls, masks, (numresidues, numincontact), lengths = process_chains(ag_search, cdrs, max_cdr_length = MAX_CDR_LENGTH)
+        #ag, ag_masks, ag_length = process_ag_chains(ag, max_ag_length=MAX_AG_LENGTH)
+
+        cdrs, lbls, masks, (numresidues, numincontact), lengths, ag, ag_masks, ag_length, dist_mat, maxi = \
+            complex_process_chains(ag_search=ag_search, cdrs=cdrs, max_cdr_length=MAX_CDR_LENGTH,
+                                   ag=ag, max_ag_length=MAX_AG_LENGTH)
 
         num_in_contact += numincontact
         num_residues += numresidues
@@ -281,13 +357,14 @@ def process_dataset(csv_file):
         all_ag_lengths.append(ag_length)
 
         all_dist_mat.append(dist_mat)
-        print("dist mat", dist_mat.shape)
+        #print("dist mat", dist_mat.shape)
         if maxi>all_max:
             all_max = maxi
             print("all_max", all_max)
+        #print("len dist", len(all_dist_mat))
 
-    print("num_residues", num_residues, file=f)
-    print("num_in_contact", num_in_contact, file=f)
+    #print("num_residues", num_residues, file=f)
+    #print("num_in_contact", num_in_contact, file=f)
 
     cdrs = torch.cat(all_cdrs)
     lbls = torch.cat(all_lbls)

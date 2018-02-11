@@ -25,6 +25,7 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
 
 
     print("cdrs", cdrs.shape)
+    print("ag", ag.shape)
     #print("lbls", lbls, file=data_file)
     #print("masks", masks, file=data_file)
     #print("lengths", lengths, file=data_file)
