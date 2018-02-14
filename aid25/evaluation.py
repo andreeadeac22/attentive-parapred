@@ -16,6 +16,7 @@ from atrous_run import *
 from attentionRNN_run import *
 from parapred_run import *
 from antigen_run import *
+from atrous_self_run import *
 
 def kfold_cv_eval(dataset, output_file="crossval-data.p",
                   weights_template="weights-fold-{}.h5", seed=0):
@@ -92,6 +93,11 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
                             ag_train, ag_masks_train, ag_lengths_train, dist_mat_train, weights_template, i,
                            cdrs_test, lbls_test, mask_test, lengths_test,
                             ag_test, ag_masks_test, ag_lengths_test, dist_mat_test)
+
+        if code == 5:
+            probs_test1, lbls_test1, probs_test2, lbls_test2 = \
+                atrous_self_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
+                           cdrs_test, lbls_test, mask_test, lengths_test)
 
         print("test", file=track_f)
 
@@ -203,6 +209,29 @@ def compute_classifier_metrics(labels, probs, labels1, probs1, threshold=0.5):
     helper_compute_metrics(matrices=matrices1, aucs=aucs1, mcorrs=mcorrs1)
 
 
+def initial_compute_classifier_metrics(labels, probs, threshold=0.5):
+    matrices = []
+
+    aucs = []
+
+    mcorrs = []
+
+    #print("labels", labels)
+    #print("probs", probs)
+
+    for l, p in zip(labels, probs):
+        #print("l", l)
+        #print("p", p)
+        aucs.append(roc_auc_score(l, p))
+        l_pred = (p > threshold).astype(int)
+        matrices.append(confusion_matrix(l, l_pred))
+        mcorrs.append(matthews_corrcoef(l, l_pred))
+
+    print("Metrics with the original version")
+    helper_compute_metrics(matrices=matrices,  aucs=aucs, mcorrs =mcorrs )
+    print("Metrics with probabilities concatenated")
+
+
 def open_crossval_results(folder="cv-ab-seq", num_results=NUM_ITERATIONS,
                           loop_filter=None, flatten_by_lengths=True):
     class_probabilities = []
@@ -250,4 +279,45 @@ def open_crossval_results(folder="cv-ab-seq", num_results=NUM_ITERATIONS,
         labels1.append(all_lbls)
 
     return labels, class_probabilities, labels1, class_probabilities1
+
+
+def initial_open_crossval_results(folder="cv-ab-seq", num_results=NUM_ITERATIONS,
+                          loop_filter=None, flatten_by_lengths=True):
+    class_probabilities = []
+    labels = []
+
+    class_probabilities1 = []
+    labels1 = []
+
+    for r in range(num_results):
+        result_filename = "{}/run-{}.p".format(folder, r)
+        with open(result_filename, "rb") as f:
+            lbl_mat, prob_mat, mask_mat = pickle.load(f)
+
+        # Get entries corresponding to the given loop
+        if loop_filter is not None:
+            lbl_mat = lbl_mat[loop_filter::6]
+            prob_mat = prob_mat[loop_filter::6]
+            mask_mat = mask_mat[loop_filter::6]
+
+        """""
+        if not flatten_by_lengths:
+            class_probabilities.append(prob_mat)
+            labels.append(lbl_mat)
+            continue
+        """
+
+        # Discard sequence padding
+        seq_lens = np.sum(np.squeeze(mask_mat), axis=1)
+        seq_lens = seq_lens.astype(int)
+
+        p = flatten_with_lengths(prob_mat, seq_lens)
+        l = flatten_with_lengths(lbl_mat, seq_lens)
+
+        class_probabilities.append(p)
+        labels.append(l)
+
+        #class_probabilities1 = np.concatenate((class_probabilities1, all_probs))
+        #labels1 = np.concatenate((labels1,all_lbls))
+    return labels, class_probabilities
 

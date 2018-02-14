@@ -113,35 +113,19 @@ def process_cv_results():
             ("#8F2BBC", "#AF95A3"),
             ("#00B1C1", "#91B9A4")]
 
-    """"
-
-    for i, loop in enumerate(["H1", "H2", "H3", "L1", "L2", "L3"]):
-        print("Plotting ROC for loop type", loop)
-        labels, probs = open_crossval_results("cv-ab-seq", NUM_ITERATIONS, i)
-        fig = plot_roc_curve(labels, probs, label=loop,
-                             colours=cols[i], plot_fig=fig)
-
-    fig.gca().set_title("ROC curves per loop type")
-    fig.savefig("roc.pdf")
-    """
 
     # Plot PR curves
     print("Plotting PR curves")
-    labels, probs, labels1, probs1 = open_crossval_results("cv-ab-seq", NUM_ITERATIONS)
-    #labels_abip, probs_abip = open_crossval_results("cv-ab-seq-abip", 10)
+    labels, probs = initial_open_crossval_results("parapred-cv-ab-seq", NUM_ITERATIONS)
+    #selflabels, selfprobs, selflabels1, selfprobs1 = open_crossval_results("self-cv-ab-seq", NUM_ITERATIONS)
+    #_,_,aglabels, agprobs = open_crossval_results("ag-cv-ab-seq", NUM_ITERATIONS)
 
-    fig = plot_pr_curve(labels, probs, colours=("#0072CF", "#68ACE5"),
-                        label="Parapred")
-    #fig = plot_pr_curve(labels_abip, probs_abip, colours=("#D6083B", "#EB99A9"),
-    #                    label="Parapred using ABiP data", plot_fig=fig)
 
-    fig = plot_abip_pr(fig)
-    fig.savefig("pr.pdf")
+    fig1 = plot_pr_curve(labels, probs, colours=("#0072CF", "#68ACE5"),label="Parapred")
 
-    fig1 = plot_pr_curve(labels1, probs1, colours=("#0072CF", "#68ACE5"),
-                        label="Parapred")
-
-    fig1 = plot_abip_pr(fig)
+    fig1 = plot_abip_pr(fig1)
+    #fig1 = plot_pr_curve(selflabels1, selfprobs1, colours=("#228B18", "#006400"), label="Fast-Parapred", plot_fig=fig1)
+    #fig1 = plot_pr_curve(aglabels, agprobs, colours=("#FF8C00", "#FFA500"), label="AG-Fast-Parapred", plot_fig=fig1)
     fig1.savefig("pr1.pdf")
 
     print("Printing PDB for visualisation")
@@ -150,7 +134,7 @@ def process_cv_results():
 
     # Computing overall classifier metrics
     print("Computing classifier metrics")
-    compute_classifier_metrics(labels, probs, labels1, probs1, threshold=0.4913739)
+    initial_compute_classifier_metrics(labels, probs, threshold=0.4913739)
 
-run_cv()
+#run_cv()
 process_cv_results()

@@ -16,13 +16,13 @@ aa_s = "CSTPAGNDEQHRKMILVFYWU" # U for unknown
 NUM_EXTRA_RESIDUES = 2 # The number of extra residues to include on the either side of a CDR
 CONTACT_DISTANCE = 4.5 # Contact distance between atoms in Angstroms
 
-AG_DISTANCE = 12
+AG_DISTANCE = 15
 
 NUM_FEATURES = len(aa_s) + 7 + 6 # one-hot + extra features + chain one-hot
 AG_NUM_FEATURES = len(aa_s) + 7
 
-NUM_ITERATIONS = 1
-NUM_SPLIT = 3
+NUM_ITERATIONS = 10
+NUM_SPLIT = 10
 
 epochs = 20
 
