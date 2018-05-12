@@ -10,6 +10,7 @@ from torch.optim import lr_scheduler
 from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence
 from torch import index_select
 from sklearn.metrics import confusion_matrix, roc_auc_score, matthews_corrcoef
+import time
 
 from constants import *
 from evaluation_tools import *
@@ -72,6 +73,8 @@ def antigen_run(cdrs_train, lbls_train, masks_train, lengths_train,
         total_dist_train = total_dist_train.cuda()
         dist_test = dist_test.cuda()
 
+    times = []
+
     for epoch in range(epochs):
         model.train(True)
         scheduler.step()
@@ -83,6 +86,8 @@ def antigen_run(cdrs_train, lbls_train, masks_train, lengths_train,
         total_ag_input, total_ag_masks, total_ag_lengths, total_dist_train = \
             permute_training_ag_data(total_input, total_masks, total_lengths, total_lbls,
                                      total_ag_input, total_ag_masks, total_ag_lengths, total_dist_train)
+
+        total_time = 0
 
         for j in range(0, cdrs_train.shape[0], batch_size):
             batches_done +=1
@@ -115,10 +120,18 @@ def antigen_run(cdrs_train, lbls_train, masks_train, lengths_train,
             #print("Epoch %d - Batch %d has loss %d " % (epoch, j, loss.data), file=monitoring_file)
             epoch_loss +=loss
             model.zero_grad()
+
+            start_time =time.time()
+
             loss.backward()
             optimizer.step()
 
+            total_time += time.time() - start_time
+            print("Total time", total_time)
+
         print("Epoch %d - loss is %f : " % (epoch, epoch_loss.data[0]/batches_done))
+        print("--- %s seconds ---" % (total_time))
+        times.append(total_time)
 
         model.eval()
 
@@ -144,6 +157,12 @@ def antigen_run(cdrs_train, lbls_train, masks_train, lengths_train,
 
     torch.save(model.state_dict(), weights_template.format(weights_template_number))
 
+    times_mean = np.mean(times)
+    times_std = 2 * np.std(times)
+
+    print("Time mean", times_mean)
+    print("Time std", times_std)
+
     model.eval()
 
     cdrs_test, masks_test, lengths_test, lbls_test, ag_test, ag_masks_test, dist_test = \
@@ -155,7 +174,7 @@ def antigen_run(cdrs_train, lbls_train, masks_train, lengths_train,
     sigmoid = nn.Sigmoid()
     probs_test = sigmoid(probs_test)
 
-    print("probs", probs_test, file=track_f)
+    #print("probs", probs_test, file=track_f)
 
     probs_test1 = probs_test.data.cpu().numpy().astype('float32')
     lbls_test1 = lbls_test.data.cpu().numpy().astype('int32')

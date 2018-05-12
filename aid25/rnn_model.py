@@ -9,24 +9,17 @@ from preprocessing import NUM_FEATURES
 from constants import *
 
 
-class AbSeqModel(nn.Module):
+class RNNModel(nn.Module):
     def __init__(self):
-        super(AbSeqModel, self).__init__()
-        # kernel
-        self.conv1 = nn.Conv1d(NUM_FEATURES, NUM_FEATURES, 3, padding=1)
-        self.elu = nn.ELU()
-        self.dropout1 = nn.Dropout(0.15)
-        self.bidir_lstm = nn.LSTM(NUM_FEATURES, 256, bidirectional=True)
+        super(RNNModel, self).__init__()
+        self.bidir_lstm = nn.LSTM(NUM_FEATURES, 256)
         self.dropout2 = nn.Dropout(0.3)
-        self.fc = nn.Conv1d(512, 1, 1)
+        self.fc = nn.Conv1d(256, 1, 1)
 
         for m in self.modules():
             self.weights_init(m)
 
     def weights_init(self, m):
-        if isinstance(m, nn.Conv1d):
-            torch.nn.init.xavier_uniform(m.weight.data)
-            m.bias.data.fill_(0.0)
         if isinstance(m, nn.LSTM):
             torch.nn.init.xavier_uniform(m.weight_ih_l0)
             torch.nn.init.orthogonal(m.weight_hh_l0)
@@ -41,17 +34,6 @@ class AbSeqModel(nn.Module):
     def forward(self, input, unpacked_masks, masks, lengths):
         initial = input
         x = input
-
-        x = torch.transpose(x, 1, 2)
-        x = self.conv1(x)
-        x = torch.transpose(x, 1, 2)
-
-        x = torch.mul(x, unpacked_masks)
-        x = self.elu(x)
-
-        x = x + initial
-
-        x = self.dropout1(x)
 
         packed_input = pack_padded_sequence(x, lengths, batch_first=True)
         output, hidden = self.bidir_lstm(packed_input)

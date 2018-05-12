@@ -32,6 +32,7 @@ chothia_cdr_def = { "L1" : (24, 34), "L2" : (50, 56), "L3" : (89, 97),
                     "H1" : (26, 32), "H2" : (52, 56), "H3" : (95, 102) }
 
 def build_the_pdb_data(pdb_name= visualisation_pdb):
+    print("Called build_the_pdb_data")
     for _, column in data_frame.iterrows():
         if (column['pdb'] == pdb_name):
             pdb_name = column['pdb']

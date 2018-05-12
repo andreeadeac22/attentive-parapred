@@ -136,5 +136,5 @@ def process_cv_results():
     print("Computing classifier metrics")
     initial_compute_classifier_metrics(labels, probs, threshold=0.4913739)
 
-#run_cv()
+run_cv()
 process_cv_results()

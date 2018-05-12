@@ -13,22 +13,21 @@ from sklearn.metrics import confusion_matrix, roc_auc_score, matthews_corrcoef
 
 import time
 
-from model import *
+from rnn_model import *
 from constants import *
 from evaluation_tools import *
 
-def simple_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_template, weights_template_number,
+def rnn_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_template, weights_template_number,
                cdrs_test, lbls_test, masks_test, lengths_test):
-    print("simple run", file=print_file)
-    model = AbSeqModel()
+    print("rnn run", file=print_file)
+    model = RNNModel()
 
-    ignored_params = list(map(id, [model.conv1.weight, model.fc.weight]))
+    ignored_params = list(map(id, [model.fc.weight]))
     base_params = filter(lambda p: id(p) not in ignored_params,
                          model.parameters())
 
     optimizer = optim.Adam([
         {'params': base_params},
-        {'params': model.conv1.weight, 'weight_decay': 0.01},
         {'params': model.fc.weight, 'weight_decay': 0.01}
     ], lr=0.01)
 
