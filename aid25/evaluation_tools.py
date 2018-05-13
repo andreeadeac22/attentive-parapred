@@ -67,6 +67,23 @@ def vis_sort_batch(cdrs, masks, lengths, lbls):
     masks = torch.index_select(masks, 0, index)
     return cdrs, masks, lengths, lbls, index
 
+def sort_batch_without_labels(cdrs, masks, lengths):
+    order = np.argsort(lengths)
+    order = order.tolist()
+    order.reverse()
+    lengths.sort(reverse=True)
+    index = Variable(torch.LongTensor(order))
+    #index = torch.LongTensor(order)
+
+    if use_cuda:
+        index = index.cuda()
+        cdrs = cdrs.cuda()
+        masks = masks.cuda()
+
+    cdrs = torch.index_select(cdrs, 0, index)
+    masks = torch.index_select(masks, 0, index)
+    return cdrs, masks, lengths, index
+
 def ag_vis_sort_batch(cdrs, masks, lengths, lbls, ag, ag_masks):
     order = np.argsort(lengths)
     order = order.tolist()

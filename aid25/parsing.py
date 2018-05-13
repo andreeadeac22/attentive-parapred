@@ -303,4 +303,48 @@ def get_pdb_structure(pdb_file_name, ab_h_chain, ab_l_chain, ag_chain):
     #print("model.ag", ag)
     return cdrs, model.agatoms, ag, model.ag_names
 
+
+def get_pdb_structure_without_ag(pdb_file_name, ab_h_chain, ab_l_chain):
+    in_file = open(pdb_file_name, 'r')
+    model = Model()
+
+    cdrs = model.get_cdrs()
+
+    #print("new cdrs", cdrs)
+    #print(ab_h_chain, ab_l_chain, ag_chain)
+    for line in in_file:
+        if line.startswith('ATOM') or line.startswith('HETATM'):
+
+            atom = Atom(line)
+            res_name = atom.res_name
+            res_full_name = atom.res_full_name
+            res_seq_num = atom.res_seq_num
+            res_full_seq_num = atom.res_full_seq_num
+            chain_id = atom.chain_id
+            #print("res_name", res_name, file=f)
+            #print("res_full_name", res_full_name, file=f)
+            if res_full_name[0] == 'A' or res_full_name[0] == " ":
+                if chain_id == ab_h_chain:
+                    model.add_atom_to_ab_h_chain(atom)
+
+                if chain_id == ab_l_chain:
+                    model.add_atom_to_ab_l_chain(atom)
+
+                for cdr_name in cdrs:
+                    cdr_low, cdr_hi = chothia_cdr_def[cdr_name]
+                    cdr_range = range(-NUM_EXTRA_RESIDUES + cdr_low, cdr_hi +
+                                      NUM_EXTRA_RESIDUES + 1)
+                    if ((chain_id == ab_h_chain and cdr_name.startswith('H'))\
+                        or (chain_id == ab_l_chain and cdr_name.startswith('L'))) \
+                                    and res_seq_num in cdr_range:
+                        residue = model.cdr_list_has_res(cdrs[cdr_name], res_name, res_full_seq_num)
+                        if residue is None:
+                            #residue = Residue(res_name, res_seq_num, res_full_name, res_full_seq_num,
+                            #                  atom.x_coord, atom.y_coord, atom.z_coord)
+                            residue = Residue(res_name, res_seq_num, res_full_name, res_full_seq_num)
+                        residue.add_child(atom)
+                        #residue.add_atom(atom)
+                        model.add_residue(residue, cdr_name)
+    return cdrs
+
 f = open('chains.txt','w')

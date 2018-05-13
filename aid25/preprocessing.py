@@ -117,6 +117,9 @@ def ag_seq_to_one_hot(agc):
     else:
         return None
 
+def seq_to_one_hot_without_chain(seqs):
+    return ag_seq_to_one_hot(seqs)
+
 def find_chain(cdr_name):
     if cdr_name == "H1":
         #print("H1")
@@ -316,6 +319,41 @@ def process_chains(ag_search, cdrs, max_cdr_length):
     masks = torch.stack(cdr_masks)
 
     return cdrs, lbls, masks, (num_residues, num_in_contact), lengths
+
+
+def process_chains_without_labels(cdrs, max_cdr_length):
+    num_residues = 0
+    num_in_contact = 0
+
+    cdr_mats = []
+    cdr_masks = []
+    lengths = []
+    for cdr_name in ["H1", "H2", "H3", "L1", "L2", "L3"]:
+        # Converting residues to amino acid sequences
+        #cdr_coords = coords(cdrs[cdr_name])
+        cdr_chain = residue_seq_to_one(cdrs[cdr_name])
+        chain_encoding = find_chain(cdr_name)
+        cdr_mat = seq_to_one_hot(cdr_chain, chain_encoding)
+        cdr_mat_pad = torch.zeros(max_cdr_length, NUM_FEATURES)
+
+        if cdr_mat is not None:
+            #print("cdr_mat", cdr_mat)
+            cdr_mat_pad[:cdr_mat.shape[0], :] = cdr_mat
+            cdr_mats.append(cdr_mat_pad)
+            lengths.append(cdr_mat.shape[0])
+
+            cdr_mask = torch.zeros(max_cdr_length, 1)
+            if len(cdr_chain) > 0:
+                cdr_mask[:len(cdr_chain), 0] = 1
+            cdr_masks.append(cdr_mask)
+        else:
+            print("is None")
+            print("cdrs[cdr_name]", cdrs[cdr_name])
+
+    cdrs = torch.stack(cdr_mats)
+    masks = torch.stack(cdr_masks)
+
+    return cdrs, masks, lengths
 
 
 def process_dataset(csv_file):
