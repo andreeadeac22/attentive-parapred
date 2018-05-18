@@ -1,3 +1,6 @@
+"""
+Helper functions for plotting the ROC curve and the Precision-Recall curve.
+"""
 from sklearn import metrics
 import numpy as np
 import matplotlib
@@ -89,27 +92,6 @@ def plot_pr_curve(labels_test, probs_test, colours=("#0072CF", "#68ACE5"),
     top_err[top_err > 1.0] = 1.0
 
     ax.fill_between(recalls, btm_err, top_err, facecolor=colours[1])
-
-    ax.set_ylabel("Precision")
-    ax.set_xlabel("Recall")
-    ax.legend()
-
-    return plot_fig
-
-def plot_abip_pr(plot_fig=None):
-    if plot_fig is None:
-        plot_fig = plt.figure(figsize=(4.5, 3.5), dpi=300)
-    ax = plot_fig.gca()
-
-    abip_rec = np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.92])
-    abip_pre = np.array([0.77, 0.74, 0.66, 0.61, 0.56,
-                         0.51, 0.50, 0.48, 0.44, 0.415])
-    abip_std = np.array([0.06, 0.04, 0.031, 0.028, 0.026,
-                         0.023, 0.02, 0.015, 0.013, 0.012])
-
-    ax.errorbar(abip_rec, abip_pre, yerr=2 * abip_std, label="Antibody i-Patch",
-                fmt='o', mfc="#EA7125", mec="#EA7125", ms=3,
-                ecolor="#F3BD48", elinewidth=1, capsize=3)
 
     ax.set_ylabel("Precision")
     ax.set_xlabel("Recall")

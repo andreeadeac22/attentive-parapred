@@ -1,8 +1,14 @@
+"""
+Custom parser for extracting data from PDB files.
+"""
 from __future__ import print_function
 
 from .constants import *
 
 class Entity(object):
+    """
+    Parent class for residue, chain - has name, id and list of children.
+    """
     def __init__(self, name, id):
         self.name = name
         self._id_ = id
@@ -29,6 +35,9 @@ class Entity(object):
 
 
 class Chain(Entity):
+    """
+    Chain representation - has chain_id and child_list is formed from its residues.
+    """
     def __init__(self, name, id = 0):
         Entity.__init__(self, name, id)
 
@@ -41,6 +50,9 @@ class Chain(Entity):
 
 
 class Residue(Entity):
+    """
+    Residue representation - has sequence_number and child_list is formed from its atoms.
+    """
     def __init__(self, name, id, full_name, full_seq_num):
         Entity.__init__(self, name, id)
         self.full_seq_num = full_seq_num
@@ -80,11 +92,6 @@ class AGResidue(Residue):
         return self.full_name
 
     def add_atom(self, atom):
-        """
-
-        :param atom:
-        :return:
-        """
         self.x_pos = ((self.x_pos * self.nr_atoms) +atom.x_coord) / (self.nr_atoms+1)
         self.y_pos = ((self.x_pos * self.nr_atoms) + atom.y_coord) / (self.nr_atoms+1)
         self.z_pos = ((self.x_pos * self.nr_atoms) + atom.z_coord) / (self.nr_atoms+1)
@@ -92,6 +99,9 @@ class AGResidue(Residue):
 
 
 class Atom(object):
+    """
+    Atom representation obtained after extracting information from "ATOM" lines in PDB files.
+    """
     def __init__(self, line):
         atom_features = line.split(" ")
         atom_features = [f for f in atom_features if f != '' and f != '\n']
@@ -118,6 +128,9 @@ class Atom(object):
         return self.name
 
 class Model(object):
+    """
+    An encapsulation of what needs to be provided as input for training and testing the neural networks.
+    """
     def __init__(self):
         self.cdrs = {name: [] for name in cdr_names}
         self.agatoms = []
@@ -218,6 +231,14 @@ class Model(object):
 """
 
 def get_pdb_structure(pdb_file_name, ab_h_chain, ab_l_chain, ag_chain):
+    """
+    Extracting the data from PDB files.
+    :param pdb_file_name: PDB file name
+    :param ab_h_chain: Name of antibody heavy chain in that PDB file.
+    :param ab_l_chain: Name of the anitbody light chain in that PDB file.
+    :param ag_chain: Name of the antigen chain(s) in that PDB file.
+    :return: cdrs, antigen atoms, antigen amino acids.
+    """
     in_file = open(pdb_file_name, 'r')
     model = Model()
 

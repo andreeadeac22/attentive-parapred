@@ -1,3 +1,6 @@
+"""
+Class NeighbourSearch is used to determine ground truth and neighbourhoods for antibody amino acids
+"""
 from __future__ import print_function
 from scipy import spatial
 import numpy as np
@@ -18,4 +21,10 @@ class NeighbourSearch(object):
         self.tree = spatial.KDTree(list(zip(self.x_coord_list, self.y_coord_list, self.z_coord_list)))
 
     def search(self, atom, distance):
+        """
+        Determines if atom is in range distance from the points in the KDTree.
+        :param atom:
+        :param distance:
+        :return:
+        """
         return len(self.tree.query_ball_point(atom.get_coord(), distance))

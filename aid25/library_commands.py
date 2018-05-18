@@ -42,6 +42,11 @@ from .evaluation_tools import sort_batch_without_labels
 _model = None
 
 def get_predictor(id_model="FP"):
+    """
+
+    :param id_model: Model user wants to use to predict binding probabilities
+    :return: instance of model
+    """
     global _model
     from .atrous_self import AtrousSelf
     from .model import AbSeqModel
@@ -102,7 +107,12 @@ def preprocess_cdr_seq(seqs, chain):
 
 
 def process_single_cdr(seqs, chain):
-
+    """
+    Predict binding probabilities when input is a single cdr with 2 additional residues on each end.
+    :param seqs: antibody amino acid sequence
+    :param chain: chain id: L1, L2, L3 or H1, H2, H3.
+    :return: binding probabilities for each amino acid
+    """
     for s in seqs:
         for r in s:
             if r not in aa_s:
@@ -171,8 +181,11 @@ def process_single_pdb(pdb_name, ab_h_chain, ab_l_chain):
     print("Probs", probs)
 
 
-
 def main():
+    """
+    Method called by the library. Input either cdr or pdb
+    :return:
+    """
     arguments = docopt(__doc__, version='Fast-Parapred v1.0')
     if arguments["pdb"]:
         if arguments["<pdb_name>"]:

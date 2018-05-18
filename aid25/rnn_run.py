@@ -1,3 +1,6 @@
+"""
+Training and testing the RNN baseline.
+"""
 from __future__ import print_function
 
 import numpy as np

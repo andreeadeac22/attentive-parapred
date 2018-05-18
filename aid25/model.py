@@ -1,3 +1,6 @@
+"""
+PyTorch implementation of original Parapred architecture.
+"""
 from __future__ import print_function
 from torch.autograd import Variable
 import torch
@@ -9,6 +12,9 @@ from .constants import *
 
 class AbSeqModel(nn.Module):
     def __init__(self):
+        """
+        Parapred's building blocks.
+        """
         super(AbSeqModel, self).__init__()
         # kernel
         self.conv1 = nn.Conv1d(NUM_FEATURES, NUM_FEATURES, 3, padding=1)
@@ -22,6 +28,11 @@ class AbSeqModel(nn.Module):
             self.weights_init(m)
 
     def weights_init(self, m):
+        """
+        Parameter initialisation for Parapred architecture. Xavier and orthogonal are used, depending on layer.
+        :param m:
+        :return:
+        """
         if isinstance(m, nn.Conv1d):
             torch.nn.init.xavier_uniform(m.weight.data)
             m.bias.data.fill_(0.0)
@@ -37,6 +48,14 @@ class AbSeqModel(nn.Module):
             m.bias_ih_l0.data.fill_(0.0)
 
     def forward(self, input, unpacked_masks, masks, lengths):
+        """
+        Performing forward propagation
+        :param input: antibody amino acid sequences
+        :param unpacked_masks:
+        :param masks:
+        :param lengths:
+        :return: binding probabilities for antibody amino acids.
+        """
         initial = input
         x = input
 

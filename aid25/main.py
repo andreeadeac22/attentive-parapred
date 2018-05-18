@@ -1,3 +1,6 @@
+"""
+Running cross-validation, processing results
+"""
 from torch.autograd import Variable
 import torch
 torch.set_printoptions(threshold=50000)
@@ -84,6 +87,13 @@ def full_run(dataset="data/sabdab_27_jun_95_90.csv", out_weights="weights.h5"):
 def run_cv(dataset="sabdab_27_jun_95_90.csv",
            output_folder="cv-ab-seq",
            num_iters=NUM_ITERATIONS):
+    """
+    Running 10-fold cross-validation 10 times.
+    :param dataset: inputs (preprocessed antibody, antigen)
+    :param output_folder: output location
+    :param num_iters: how many iterations of cross-validation
+    :return: void
+    """
     cache_file = dataset.split("/")[-1] + ".p"
     dataset = open_dataset(dataset_cache=cache_file)
 
@@ -100,6 +110,10 @@ def run_cv(dataset="sabdab_27_jun_95_90.csv",
                       output_file, weights_template, seed=i)
 
 def process_cv_results():
+    """
+    Plots PR curves, output computed metrics
+    :return:void
+    """
     import matplotlib.pyplot as plt
     plt.rcParams["font.family"] = "Times New Roman"
 
@@ -137,5 +151,5 @@ def process_cv_results():
     print("Computing classifier metrics")
     initial_compute_classifier_metrics(labels, probs, threshold=0.4913739)
 
-run_cv()
-process_cv_results()
+#run_cv()
+#process_cv_results()

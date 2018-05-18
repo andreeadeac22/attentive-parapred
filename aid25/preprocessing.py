@@ -1,3 +1,6 @@
+"""
+Preprocessing function of the custom parser.
+"""
 from __future__ import print_function, division
 import os
 import pickle
@@ -38,10 +41,20 @@ def load_chains(csv_file):
         i = i + 1
 
 def residue_in_contact_with(res, c_search, dist):
+    """
+    Computing ground truth values
+    :param res: antibody amino acid
+    :param c_search: KDTree using antigen atoms
+    :param dist: threshold distance for which amino acid is considered binding.
+    :return:
+    """
     return any(c_search.search(a, dist) > 0   # search(self, centre, radius) - for each atom in res (antibody)
                for a in res.get_unpacked_list())
 
 def residue_seq_to_one(seq):
+    """
+    Standard mapping from 3-letters amino acid type encoding to one.
+    """
     three_to_one = lambda r: Polypeptide.three_to_one(r.name)\
         if r.name in Polypeptide.standard_aa_names else 'U'
     return list(map(three_to_one, seq))

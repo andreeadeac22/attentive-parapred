@@ -1,3 +1,6 @@
+"""
+RNN Baseline.
+"""
 from __future__ import print_function
 from torch.autograd import Variable
 import torch
@@ -10,6 +13,9 @@ from .constants import *
 
 class RNNModel(nn.Module):
     def __init__(self):
+        """
+        Building blocks of the baseline -  LSTM layer and dense output layer
+        """
         super(RNNModel, self).__init__()
         self.bidir_lstm = nn.LSTM(NUM_FEATURES, 256)
         self.fc = nn.Conv1d(256, 1, 1)

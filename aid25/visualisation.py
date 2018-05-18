@@ -1,3 +1,7 @@
+"""
+Helper functions for the interpretability studies.
+Plugging binindg probabilities and attentional coefficients in the occupancy factor column of PDB files.
+"""
 from __future__ import print_function, division
 import os
 import pickle

@@ -11,6 +11,14 @@ from torch import index_select
 from .constants import *
 
 def sort_batch(cdrs, masks, lengths, lbls):
+    """
+    Sort antibody amino acid sequences by length -- for RNN
+    :param cdrs:
+    :param masks:
+    :param lengths:
+    :param lbls:
+    :return: sorted input
+    """
     order = np.argsort(lengths)
     order = order.tolist()
     order.reverse()
@@ -127,6 +135,14 @@ def permute_training_ag_data(cdrs, masks, lengths, lbls, ag, ag_masks, ag_length
     return cdrs, masks, lengths, lbls, ag, ag_masks, ag_lengths, dist
 
 def permute_training_data(cdrs, masks, lengths, lbls):
+    """
+    Shuffle training data
+    :param cdrs:
+    :param masks:
+    :param lengths:
+    :param lbls:
+    :return:
+    """
     index = torch.randperm(cdrs.shape[0])
     if use_cuda:
         index = index.cuda()
