@@ -1,3 +1,6 @@
+"""
+Helper functions for the evaluation suite.
+"""
 import numpy as np
 np.set_printoptions(threshold=np.nan)
 from torch.autograd import Variable
@@ -5,7 +8,7 @@ import torch
 torch.set_printoptions(threshold=50000)
 from torch import index_select
 
-from constants import *
+from .constants import *
 
 def sort_batch(cdrs, masks, lengths, lbls):
     order = np.argsort(lengths)

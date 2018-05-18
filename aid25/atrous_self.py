@@ -1,3 +1,6 @@
+"""
+Fast-Parapred Model
+"""
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
@@ -5,16 +8,15 @@ from torch import optim
 import torch.nn.functional as F
 from torch import index_select
 
-from constants import *
-from preprocessing import NUM_FEATURES
+from .constants import *
 
 class AtrousSelf(nn.Module):
     def __init__(self):
         super(AtrousSelf, self).__init__()
-        self.conv1 = nn.Conv1d(NUM_FEATURES, 64, 3, padding=1)
+        self.conv1 = nn.Conv1d(NUM_FEATURES, 64, 3, padding=1)  # a trous convolution
         self.conv2 = nn.Conv1d(64, 128, 3, padding=2, dilation=2)
         self.conv3 = nn.Conv1d(128, 256, 3, padding=4, dilation=4)
-        self.bn1 = nn.BatchNorm1d(64)
+        self.bn1 = nn.BatchNorm1d(64)  # batch normalisation after first a trous convolution
         self.bn2 = nn.BatchNorm1d(128)
         self.bn3 = nn.BatchNorm1d(256)
         self.bn4 = nn.BatchNorm1d(512)
@@ -32,6 +34,11 @@ class AtrousSelf(nn.Module):
             self.weights_init(m)
 
     def weights_init(self, m):
+        """
+
+        :param m: Layer type
+        :return: void. Performs parameter initialisation
+        """
         if isinstance(m, nn.Conv1d):
             torch.nn.init.xavier_uniform(m.weight.data)
             m.bias.data.fill_(0.0)
@@ -40,6 +47,12 @@ class AtrousSelf(nn.Module):
             m.bias.data.fill_(0.0)
 
     def forward(self, input, unpacked_masks):
+        """
+
+        :param input: antibody amino acid sequences
+        :param unpacked_masks:
+        :return: antibody binding probabilities
+        """
         x=input
 
         unpacked_masks = torch.transpose(unpacked_masks, 1, 2)

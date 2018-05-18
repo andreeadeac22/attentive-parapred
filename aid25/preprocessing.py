@@ -8,15 +8,14 @@ from Bio.PDB import Polypeptide
 from os.path import isfile, exists
 import numpy as np
 
-from constants import *
-from parsing import *
-from search import *
+from .constants import *
+from .parsing import *
+from .search import *
 
 import warnings
 warnings.filterwarnings("ignore")
 
-CSV_NAME = 'sabdab_27_jun_95_90.csv'
-data_frame = pd.read_csv(DATA_DIRECTORY + CSV_NAME)
+#data_frame = pd.read_csv(DATA_DIRECTORY + CSV_NAME)
 
 def load_chains(csv_file):
     print("in load_chains")
@@ -430,7 +429,8 @@ def process_dataset(csv_file):
         "dist_mat": dist_mat
     }
 
-def open_dataset(summary_file=data_frame, dataset_cache="processed-dataset.p"):
+def open_dataset(dataset_cache="processed-dataset.p"):
+    summary_file = pd.read_csv(DATA_DIRECTORY + CSV_NAME)
     if exists(dataset_cache) and isfile(dataset_cache):
         print("Precomputed dataset found, loading...")
         with open(dataset_cache, "rb") as f:

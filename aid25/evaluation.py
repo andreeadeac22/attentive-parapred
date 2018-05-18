@@ -1,3 +1,6 @@
+"""
+Evaluation suite
+"""
 from __future__ import print_function
 from sklearn.model_selection import KFold
 
@@ -21,6 +24,14 @@ from rnn_run import *
 
 def kfold_cv_eval(dataset, output_file="crossval-data.p",
                   weights_template="weights-fold-{}.h5", seed=0):
+    """
+    Performs 10-fold cross-vallidation
+    :param dataset: contains antibody amino acids, ground truth values, antigen atoms
+    :param output_file: where to print weights
+    :param weights_template:
+    :param seed: cv
+    :return:
+    """
     cdrs, lbls, masks, lengths, ag, ag_masks, ag_lengths, dist_mat = \
         dataset["cdrs"], dataset["lbls"], dataset["masks"], dataset["lengths"],\
         dataset["ag"], dataset["ag_masks"], dataset["ag_lengths"], dataset["dist_mat"]
@@ -73,7 +84,7 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
         ag_masks_test = Variable(index_select(ag_masks, 0, test_idx))
         dist_mat_test = Variable(index_select(dist_mat, 0, test_idx))
 
-        code = 6
+        code = 4
         if code ==1:
             probs_test1, lbls_test1, probs_test2, lbls_test2 = \
                 simple_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
@@ -180,6 +191,15 @@ def helper_compute_metrics(matrices, aucs, mcorrs):
 
 
 def compute_classifier_metrics(labels, probs, labels1, probs1, threshold=0.5):
+    """
+    Computes metric: precision, recall, mcc, f1
+    :param labels: ground truth
+    :param probs: predicted values
+    :param labels1:
+    :param probs1:
+    :param threshold: binding/non-binding threshold
+    :return:
+    """
     matrices = []
     matrices1 = []
 
@@ -240,6 +260,14 @@ def initial_compute_classifier_metrics(labels, probs, threshold=0.5):
 
 def open_crossval_results(folder="cv-ab-seq", num_results=NUM_ITERATIONS,
                           loop_filter=None, flatten_by_lengths=True):
+    """
+    Compute cross-validation results
+    :param folder: folder to output results to
+    :param num_results: how many times cv is executed
+    :param loop_filter:
+    :param flatten_by_lengths:
+    :return:
+    """
     class_probabilities = []
     labels = []
 

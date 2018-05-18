@@ -4,7 +4,6 @@ torch.set_printoptions(threshold=50000)
 import torch.nn as nn
 import torch.nn.functional as F
 from preprocessing import open_dataset
-from preprocessing import NUM_FEATURES, data_frame
 from model import *
 import torch.optim as optim
 from torch import squeeze
@@ -24,7 +23,7 @@ from visualisation import *
 def full_run(dataset="data/sabdab_27_jun_95_90.csv", out_weights="weights.h5"):
     print("main, full_run")
     cache_file = dataset.split("/")[-1] + ".p"
-    dataset = open_dataset(data_frame, dataset_cache=cache_file)
+    dataset = open_dataset(dataset_cache=cache_file)
     cdrs, total_lbls, masks, lengths = dataset["cdrs"], dataset["lbls"], dataset["masks"], dataset["lengths"]
 
     print("cdrs shape", cdrs.shape)
@@ -116,12 +115,14 @@ def process_cv_results():
 
     # Plot PR curves
     print("Plotting PR curves")
-    labels, probs = initial_open_crossval_results("parapred-cv-ab-seq", NUM_ITERATIONS)
+    labels, probs, labels1, probs1 = open_crossval_results("cv-ab-seq", NUM_ITERATIONS)
+
+    #labels, probs = initial_open_crossval_results("parapred-cv-ab-seq", NUM_ITERATIONS)
     #selflabels, selfprobs, selflabels1, selfprobs1 = open_crossval_results("self-cv-ab-seq", NUM_ITERATIONS)
     #_,_,aglabels, agprobs = open_crossval_results("ag-cv-ab-seq", NUM_ITERATIONS)
 
 
-    fig1 = plot_pr_curve(labels, probs, colours=("#0072CF", "#68ACE5"),label="Parapred")
+    fig1 = plot_pr_curve(labels1, probs1, colours=("#0072CF", "#68ACE5"),label="Parapred")
 
     fig1 = plot_abip_pr(fig1)
     #fig1 = plot_pr_curve(selflabels1, selfprobs1, colours=("#228B18", "#006400"), label="Fast-Parapred", plot_fig=fig1)

@@ -1,3 +1,6 @@
+"""
+Training and testing Fast-Parapred
+"""
 from __future__ import print_function
 
 import numpy as np
@@ -19,6 +22,20 @@ from evaluation_tools import *
 
 def atrous_self_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_template, weights_template_number,
                cdrs_test, lbls_test, masks_test, lengths_test):
+    """
+
+    :param cdrs_train: antibody amino acid training sequences
+    :param lbls_train:
+    :param masks_train:
+    :param lengths_train:
+    :param weights_template:
+    :param weights_template_number:
+    :param cdrs_test:
+    :param lbls_test:
+    :param masks_test:
+    :param lengths_test:
+    :return: binding probabilities for testing antibody amino acids
+    """
 
     print("atrous self run", file=print_file)
     model = AtrousSelf()

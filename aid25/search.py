@@ -1,9 +1,9 @@
 from __future__ import print_function
-from parsing import Atom
 from scipy import spatial
 import numpy as np
 
-from constants import *
+from .parsing import Atom
+from .constants import *
 
 class NeighbourSearch(object):
     def __init__(self, ag_atoms_list):

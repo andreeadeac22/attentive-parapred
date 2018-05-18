@@ -1,4 +1,13 @@
+"""
+Test for comparing files - used for testing custom Parser's output
+"""
 def compare_files(fname, gname):
+    """
+
+    :param fname: custom parser's output
+    :param gname: validated output
+    :return: pass/fail
+    """
     with open(fname) as f:
         fcontent = f.readlines()
     with open(gname) as g:

@@ -1,3 +1,6 @@
+"""
+Training and testing AG-Fast-Parapred
+"""
 from __future__ import print_function
 
 import numpy as np
@@ -21,6 +24,28 @@ def antigen_run(cdrs_train, lbls_train, masks_train, lengths_train,
                weights_template, weights_template_number,
                cdrs_test, lbls_test, masks_test, lengths_test,
                ag_test, ag_masks_test, ag_lengths_test, dist_test):
+    """
+
+    :param cdrs_train: antibody amino acids used for training
+    :param lbls_train: ground truth values for antibody amino acids used for training
+    :param masks_train: amino acids' masks
+    :param lengths_train: amino acids' lengths
+    :param ag_train: antigen amino acids used for training
+    :param ag_masks_train: antigen amino acids' masks
+    :param ag_lengths_train: antigen amino acids' lengths
+    :param dist_mat_train:
+    :param weights_template: template for printing weights
+    :param weights_template_number: which file to print weights to
+    :param cdrs_test: antibody amino acids used for testing
+    :param lbls_test:
+    :param masks_test:
+    :param lengths_test:
+    :param ag_test:
+    :param ag_masks_test:
+    :param ag_lengths_test:
+    :param dist_test:
+    :return:
+    """
 
     print("dilated run", file=print_file)
     model = AG()
@@ -75,7 +100,7 @@ def antigen_run(cdrs_train, lbls_train, masks_train, lengths_train,
 
     times = []
 
-    for epoch in range(epochs):
+    for epoch in range(epochs):  # training iterations
         model.train(True)
         scheduler.step()
         epoch_loss = 0

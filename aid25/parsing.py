@@ -1,6 +1,6 @@
 from __future__ import print_function
 
-from constants import *
+from .constants import *
 
 class Entity(object):
     def __init__(self, name, id):
@@ -80,6 +80,11 @@ class AGResidue(Residue):
         return self.full_name
 
     def add_atom(self, atom):
+        """
+
+        :param atom:
+        :return:
+        """
         self.x_pos = ((self.x_pos * self.nr_atoms) +atom.x_coord) / (self.nr_atoms+1)
         self.y_pos = ((self.x_pos * self.nr_atoms) + atom.y_coord) / (self.nr_atoms+1)
         self.z_pos = ((self.x_pos * self.nr_atoms) + atom.z_coord) / (self.nr_atoms+1)

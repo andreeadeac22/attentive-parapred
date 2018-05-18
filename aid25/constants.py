@@ -1,3 +1,7 @@
+"""
+Constants used in the implemented models.
+Includes values for input sizes, output sizes and hyperparameters.
+"""
 import torch
 
 MAX_CDR_LENGTH = 32
@@ -33,7 +37,7 @@ visualisation_pdb_number = 0
 visualisation_flag = False
 DATA_DIRECTORY = 'data/'
 PDBS_FORMAT = 'data/{}.pdb'
-
+CSV_NAME = 'sabdab_27_jun_95_90.csv'
 
 
 visualisation_pdb = "4bz1"
