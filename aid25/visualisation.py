@@ -165,13 +165,15 @@ def print_probabilities(model, model_type = "FP", out_file_name = default_out_fi
     vis_masks, _ = pad_packed_sequence(vis_packed_input, batch_first=True)
 
     if model_type == "FP":
+        print("IN FP")
         vis_probs = model(vis_cdrs, vis_unpacked_masks)
     else:
         if model_type == "P":
-            vis_probs = model(vis_cdrs, vis_unpacked_masks)
+            vis_probs = model(vis_cdrs, vis_unpacked_masks, vis_masks, list(vis_lengths))
+
         else:
             if model_type == "L":
-                vis_probs = model(vis_cdrs, vis_unpacked_masks)
+                vis_probs = model(vis_cdrs, vis_unpacked_masks, vis_masks, list(vis_lengths))
             else:
                 vis_probs = model(vis_cdrs, vis_unpacked_masks)
 

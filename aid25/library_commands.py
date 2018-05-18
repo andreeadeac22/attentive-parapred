@@ -160,7 +160,7 @@ def call_predictor(id_model, model, cdrs, masks, unpacked_masks, lengths):
     return probs
 
 def process_single_pdb(pdb_name, model_type, ab_h_chain, ab_l_chain):
-    model = get_predictor()
+    model = get_predictor(model_type)
     print("after model")
     if model_type == "AFP":
         print_ag_weights(out_file_name=pdb_name, model=model)
