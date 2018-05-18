@@ -17,7 +17,7 @@ Options:
                                 binding probabilities.
     --abh <ab_h_chain>       Name of the antibody high chain.
     --abl <ab_l_chain>       Name of the antibody low chain.
-    --model                  Predictor to be used: LSTM Baseline(L), Parapred(P), Fast-Parapred(FP) or
+    --model <m>                 Predictor to be used: LSTM Baseline(L), Parapred(P), Fast-Parapred(FP) or
                                     AG-Fast-Parapred (AFP).
     --ag <ag_chain>          Name of antigen chain in PDB file.
     -h --help                    Show this help.
@@ -27,6 +27,8 @@ Options:
 from __future__ import print_function
 
 import torch
+import os
+import pickle
 from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence
 import pkg_resources
 from docopt import docopt
@@ -34,10 +36,11 @@ from torch.autograd import Variable
 import torch.nn as nn
 
 from .constants import *
-from .parsing import get_pdb_structure_without_ag
+from .parsing import get_pdb_structure
 from .preprocessing import process_chains_without_labels, seq_to_one_hot_without_chain, seq_to_one_hot, find_chain
 from .evaluation_tools import sort_batch_without_labels
-
+from .search import NeighbourSearch
+from .visualisation import print_probabilities, print_ag_weights
 
 _model = None
 
@@ -56,7 +59,7 @@ def get_predictor(id_model="FP"):
         if id_model == "L":
             _model = RNNModel()
             weights = pkg_resources.resource_filename(__name__, "cv-ab-seq/rnn_weights.pth.tar")
-        if id_model == "F":
+        if id_model == "P":
             _model = AbSeqModel()
             weights = pkg_resources.resource_filename(__name__, "cv-ab-seq/parapred_weights.pth.tar")
         if id_model == "FP":
@@ -148,7 +151,7 @@ def process_single_cdr(seqs, chain):
 def call_predictor(id_model, model, cdrs, masks, unpacked_masks, lengths):
     if id_model == "L":
         probs = model()
-    if id_model == "F":
+    if id_model == "P":
         probs = model()
     if id_model == "FP":
         probs = model()
@@ -156,29 +159,13 @@ def call_predictor(id_model, model, cdrs, masks, unpacked_masks, lengths):
         probs = model()
     return probs
 
-def process_single_pdb(pdb_name, ab_h_chain, ab_l_chain):
+def process_single_pdb(pdb_name, model_type, ab_h_chain, ab_l_chain):
     model = get_predictor()
-    cdrs = get_pdb_structure_without_ag(PDBS_FORMAT.format(pdb_name), ab_h_chain, ab_l_chain)
-    cdrs, masks, lengths = process_chains_without_labels(cdrs, max_cdr_length=MAX_CDR_LENGTH)
-    cdrs = Variable(torch.Tensor(cdrs))
-    masks = Variable(torch.Tensor(masks))
-
-    cdrs, masks, lengths, index = sort_batch_without_labels(cdrs, masks, list(lengths))
-
-    unpacked_masks = masks
-    packed_input = pack_padded_sequence(masks, list(lengths), batch_first=True)
-    masks, _ = pad_packed_sequence(packed_input, batch_first=True)
-
-    probs = model(cdrs, unpacked_masks)
-
-    sigmoid = nn.Sigmoid()
-    probs = sigmoid(probs)
-
-    # unsort
-    probs = torch.index_select(probs, 0, index)
-    cdrs = torch.index_select(cdrs, 0, index)
-
-    print("Probs", probs)
+    print("after model")
+    if model_type == "AFP":
+        print_ag_weights(out_file_name=pdb_name, model=model)
+    else:
+        print_probabilities(model, model_type=model_type,out_file_name= pdb_name)
 
 
 def main():
@@ -189,7 +176,7 @@ def main():
     arguments = docopt(__doc__, version='Fast-Parapred v1.0')
     if arguments["pdb"]:
         if arguments["<pdb_name>"]:
-            process_single_pdb(arguments["<pdb_name>"],
+            process_single_pdb(arguments["<pdb_name>"], arguments["--model"],
                                arguments["--abh"], arguments["--abl"])
     else:
         if arguments["cdr"]:

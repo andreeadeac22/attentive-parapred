@@ -13,13 +13,13 @@ from torch.autograd import Variable
 from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence
 import torch.nn as nn
 
-from constants import *
-from parsing import *
-from search import *
-from model import *
-from preprocessing import process_chains, process_ag_chains
-from evaluation_tools import *
-from ag_experiment import *
+from .constants import *
+from .parsing import *
+from .search import *
+from .model import *
+from .preprocessing import process_chains, process_ag_chains
+from .evaluation_tools import *
+from .ag_experiment import *
 
 DATA_DIRECTORY = 'data/'
 PDBS_FORMAT = 'data/{}.pdb'
@@ -145,9 +145,8 @@ def get_residue_numbers(vis_cdrs):
     return vis_cdrs_h1_numbers, vis_cdrs_h2_numbers, vis_cdrs_h3_numbers, \
            vis_cdrs_l1_numbers, vis_cdrs_l2_numbers, vis_cdrs_l3_numbers
 
-def print_probabilities(out_file_name = default_out_file_name):
-    model = AbSeqModel()
-    model.load_state_dict(torch.load("cv-ab-seq/weights/run-0-fold-1.pth.tar"))
+def print_probabilities(model, model_type = "FP", out_file_name = default_out_file_name):
+    #model.load_state_dict(torch.load("cv-ab-seq/weights/run-0-fold-1.pth.tar"))
 
     if use_cuda:
         model.cuda()
@@ -165,7 +164,16 @@ def print_probabilities(out_file_name = default_out_file_name):
     vis_packed_input = pack_padded_sequence(vis_masks, list(vis_lengths), batch_first=True)
     vis_masks, _ = pad_packed_sequence(vis_packed_input, batch_first=True)
 
-    vis_probs = model(vis_cdrs, vis_unpacked_masks, vis_masks, list(vis_lengths))
+    if model_type == "FP":
+        vis_probs = model(vis_cdrs, vis_unpacked_masks)
+    else:
+        if model_type == "P":
+            vis_probs = model(vis_cdrs, vis_unpacked_masks)
+        else:
+            if model_type == "L":
+                vis_probs = model(vis_cdrs, vis_unpacked_masks)
+            else:
+                vis_probs = model(vis_cdrs, vis_unpacked_masks)
 
     sigmoid = nn.Sigmoid()
     vis_probs = sigmoid(vis_probs)
@@ -183,13 +191,13 @@ def print_probabilities(out_file_name = default_out_file_name):
     vis_cdrs_h1_numbers, vis_cdrs_h2_numbers, vis_cdrs_h3_numbers, \
     vis_cdrs_l1_numbers, vis_cdrs_l2_numbers, vis_cdrs_l3_numbers = get_residue_numbers(dataset["cdrs"])
 
-    print("vis_cdrs_h1_numbers", vis_cdrs_h1_numbers)
-    print("vis_cdrs_h2_numbers", vis_cdrs_h2_numbers)
-    print("vis_cdrs_h3_numbers", vis_cdrs_h3_numbers)
+    #print("vis_cdrs_h1_numbers", vis_cdrs_h1_numbers)
+    #print("vis_cdrs_h2_numbers", vis_cdrs_h2_numbers)
+    #print("vis_cdrs_h3_numbers", vis_cdrs_h3_numbers)
 
-    print("vis_cdrs_l1_numbers", vis_cdrs_l1_numbers)
-    print("vis_cdrs_l2_numbers", vis_cdrs_l2_numbers)
-    print("vis_cdrs_l3_numbers", vis_cdrs_l3_numbers)
+    #print("vis_cdrs_l1_numbers", vis_cdrs_l1_numbers)
+    #print("vis_cdrs_l2_numbers", vis_cdrs_l2_numbers)
+    #print("vis_cdrs_l3_numbers", vis_cdrs_l3_numbers)
 
     #print("vis_parapred_cdrs", vis_pcdrs)
     #print("vis_probs", vis_probs)
@@ -327,10 +335,9 @@ def print_probabilities(out_file_name = default_out_file_name):
             new_line += "\n"
             append_file.write(new_line)
 
-def print_ag_weights(out_file_name = ag_default_out_file_name):
+def print_ag_weights(out_file_name = ag_default_out_file_name, model=AG()):
     print("in ag visual")
-    model = AG()
-    model.load_state_dict(torch.load("cv-ab-seq/run-0-fold-0.pth.tar"))
+    #model.load_state_dict(torch.load("cv-ab-seq/run-0-fold-0.pth.tar"))
     model.eval()
 
     if use_cuda:
@@ -347,6 +354,7 @@ def print_ag_weights(out_file_name = ag_default_out_file_name):
     #    ag_vis_sort_batch(vis_cdrs, vis_masks, list(vis_lengths), vis_lbls, vis_ag, vis_ag_masks)
 
     vis_probs, weights = model(vis_cdrs, vis_masks, vis_ag, vis_ag_masks)
+
 
     sigmoid = nn.Sigmoid()
     vis_probs = sigmoid(vis_probs)
