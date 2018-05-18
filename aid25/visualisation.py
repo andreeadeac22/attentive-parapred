@@ -17,7 +17,7 @@ from .constants import *
 from .parsing import *
 from .search import *
 from .model import *
-from .preprocessing import process_chains, process_ag_chains
+from .preprocessing import process_chains, process_ag_chains, complex_process_chains
 from .evaluation_tools import *
 from .ag_experiment import *
 
@@ -89,6 +89,69 @@ def build_the_pdb_data(pdb_name= visualisation_pdb):
                 "lengths": lengths,
                 "ag": ag,
                 "ag_masks": ag_masks
+            }
+            return dataset
+
+def build_the_ag_pdb_data(pdb_name= visualisation_pdb):
+    print("Called build_the_pdb_data")
+    for _, column in data_frame.iterrows():
+        if (column['pdb'] == pdb_name):
+            pdb_name = column['pdb']
+            ab_h_chain = column['Hchain']
+            ab_l_chain = column['Lchain']
+            antigen_chain = column['antigen_chain']
+            print(pdb_name)
+            print(pdb_name, file=visualisation_file)
+            print(ab_h_chain)
+            print(ab_l_chain)
+            print(antigen_chain, file=visualisation_file)
+
+            cdrs, ag_atoms, ag, ag_names = get_pdb_structure(PDBS_FORMAT.format(pdb_name), ab_h_chain, ab_l_chain, antigen_chain)
+
+            ag_item = ag[ag_names[0]]
+            ag = {}
+
+            ag = {name: ag_item for name, item in cdrs.items()}
+
+            data = {
+                "ab_h_chain": ab_h_chain,
+                "ab_l_chain":ab_l_chain,
+                "cdrs": cdrs,
+                "ag_name":ag_names[0],
+                "ag":ag
+            }
+
+            with open(vis_dataset_file, "wb") as write_file:
+                pickle.dump(data, write_file, protocol=2)
+
+
+            ag_search = NeighbourSearch(ag_atoms)
+            cdrs, lbls, masks, (numresidues, numincontact), lengths, ag, ag_masks, ag_length, dist_mat, maxi = \
+                complex_process_chains(ag_search=ag_search, cdrs=cdrs, max_cdr_length=MAX_CDR_LENGTH,
+                                       ag=ag, max_ag_length=MAX_AG_LENGTH)
+
+            #cdrs, lbls, masks, (numresidues, numincontact), lengths = complex_process_chains(ag_search, cdrs,
+            #                                                                         max_cdr_length=MAX_CDR_LENGTH)
+            #ag, ag_masks, ag_length = process_ag_chains(ag, max_ag_length=MAX_AG_LENGTH)
+
+            cdrs = Variable(torch.Tensor(cdrs))
+            lbls = Variable(torch.Tensor(lbls))
+            masks = Variable(torch.Tensor(masks))
+
+            ag = Variable(torch.Tensor(ag))
+            ag_masks = Variable(torch.Tensor(ag_masks))
+            dist_mat = Variable(torch.Tensor(dist_mat))
+
+            dataset = {
+                "cdrs" : cdrs,
+                "lbls" : lbls,
+                "masks" : masks,
+                "max_cdr_len": MAX_CDR_LENGTH,
+                "pos_class_weight" : numresidues/numincontact,
+                "lengths": lengths,
+                "ag": ag,
+                "ag_masks": ag_masks,
+                "dist_mat": dist_mat
             }
             return dataset
 
@@ -338,6 +401,12 @@ def print_probabilities(model, model_type = "FP", out_file_name = default_out_fi
             append_file.write(new_line)
 
 def print_ag_weights(out_file_name = ag_default_out_file_name, model=AG()):
+    """
+    Writes attentional coefficients when attending over antigen amino acids.
+    :param out_file_name: output file name
+    :param model: model to be applied to the data
+    :return: void, writes attentional coefficients to file
+    """
     print("in ag visual")
     #model.load_state_dict(torch.load("cv-ab-seq/run-0-fold-0.pth.tar"))
     model.eval()
@@ -346,16 +415,17 @@ def print_ag_weights(out_file_name = ag_default_out_file_name, model=AG()):
         model.cuda()
 
     print("writing to visualisation file")
-    vis_dataset = build_the_pdb_data(visualisation_pdb)
-    vis_cdrs, vis_masks, vis_lbls, vis_lengths, vis_ag, vis_ag_masks = \
+    #vis_dataset = build_the_pdb_data(visualisation_pdb)
+    vis_dataset = build_the_ag_pdb_data(visualisation_pdb)
+    vis_cdrs, vis_masks, vis_lbls, vis_lengths, vis_ag, vis_ag_masks, dist_mat = \
         vis_dataset["cdrs"], vis_dataset["masks"], vis_dataset["lbls"], vis_dataset["lengths"], \
-        vis_dataset["ag"], vis_dataset["ag_masks"]
+        vis_dataset["ag"], vis_dataset["ag_masks"], vis_dataset["dist_mat"]
 
     # i shouldn't have to sort anymore - no rnn/lstm
     #vis_cdrs, vis_masks, vis_lengths, vis_lbls, vis_index, vis_ag, vis_ag_masks = \
     #    ag_vis_sort_batch(vis_cdrs, vis_masks, list(vis_lengths), vis_lbls, vis_ag, vis_ag_masks)
 
-    vis_probs, weights = model(vis_cdrs, vis_masks, vis_ag, vis_ag_masks)
+    vis_probs, weights = model(vis_cdrs, vis_masks, vis_ag, vis_ag_masks, dist_mat)
 
 
     sigmoid = nn.Sigmoid()
