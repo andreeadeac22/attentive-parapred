@@ -16,12 +16,12 @@ from torch import index_select
 from constants import *
 from preprocessing import NUM_FEATURES, AG_NUM_FEATURES
 
-class AG(nn.Module):
+class EpitopeX(nn.Module):
     def __init__(self):
         """
         Declares the building blocks of the neural network.
         """
-        super(AG, self).__init__()
+        super(EpitopeX, self).__init__()
 
         self.conv1 = nn.Conv1d(NUM_FEATURES, 64, 3, padding=1)  # antibody first a trous convolutional layer
 
@@ -72,7 +72,7 @@ class AG(nn.Module):
             torch.nn.init.xavier_uniform(m.weight.data)
             m.bias.data.fill_(0.0)
 
-    def forward(self, ab_input, ab_unpacked_masks, ag_input, ag_unpacked_masks, dist):
+    def forward(self, ag_input, ag_unpacked_masks, ab_input, ab_unpacked_masks):
         """
         Forward propagation step
         :param ab_input: antibody amino acid sequences
@@ -148,10 +148,6 @@ class AG(nn.Module):
 
         oldag = agx
 
-        heads_no = 1
-        #bias_mat = 1e9 * (ag_unpacked_masks - 1.0)
-        dist_mat = 1e9 * (dist - 1.0)
-        #dist_mat = self.maxpool1(dist_mat)
 
         for i in range(heads_no):
             #agconvi = nn.Conv1d(256, 128, 1)
@@ -164,29 +160,29 @@ class AG(nn.Module):
             #agx = agconvi(oldag)
             w_1 = aconvi1(x)
             w_2 = aconvi2(agx)
-            w = self.lrelu(w_2 + torch.transpose(w_1, 1, 2))
-            w = self.softmax(w + dist_mat)
+            w = self.lrelu(w_1 + torch.transpose(w_2, 1, 2))
+            w = self.softmax(w)
             w = self.dropout(w)
-            temp_loop_x = torch.bmm(w, torch.transpose(agx, 1, 2))
+            temp_loop_x = torch.bmm(w, torch.transpose(x, 1, 2))
             if i==0:
                 loop_x = temp_loop_x
             else:
                 loop_x = torch.cat((loop_x, temp_loop_x), dim=2)
 
-        x = torch.transpose(loop_x, 1, 2)
+        agx = torch.transpose(loop_x, 1, 2)
         #x = x + old
-        x = torch.cat((x, old), dim=1)
-        x = torch.mul(x, ab_unpacked_masks)
+        agx = torch.cat((agx, oldag), dim=1)
+        agx = torch.mul(agx, ag_unpacked_masks)
 
-        x = self.bn4(x)
-        x = self.elu(x)
-        x = torch.mul(x, ab_unpacked_masks)
-        x = torch.transpose(x, 1, 2)
+        agx = self.bn4(agx)
+        agx = self.elu(agx)
+        agx = torch.mul(agx, ag_unpacked_masks)
+        agx = torch.transpose(agx, 1, 2)
 
-        x = self.dropout2(x)
+        agx = self.dropout2(agx)
 
-        x = self.fc(x)
+        agx = self.fc(agx)
 
         #print("x after fc", x, file=track_f)
 
-        return x, w
+        return agx, w

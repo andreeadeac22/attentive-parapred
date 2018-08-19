@@ -76,7 +76,6 @@ class EpitopePredict(nn.Module):
         x = torch.mul(x, unpacked_masks)
         x = self.dropout(x)
 
-        """""
 
         old = x
 
@@ -100,7 +99,7 @@ class EpitopePredict(nn.Module):
         x = torch.transpose(x, 1, 2)
 
         x = self.dropout2(x)
-        """
+        
         x = torch.transpose(x, 1, 2)
 
         x = self.fc(x)

@@ -8,7 +8,7 @@ from torch import optim
 import torch.nn.functional as F
 from torch import index_select
 
-from .constants import *
+from constants import *
 
 class AtrousSelf(nn.Module):
     def __init__(self):

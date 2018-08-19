@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence
 
-from .constants import *
+from constants import *
 
 class AbSeqModel(nn.Module):
     def __init__(self):

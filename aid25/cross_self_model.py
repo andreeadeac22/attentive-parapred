@@ -16,12 +16,12 @@ from torch import index_select
 from constants import *
 from preprocessing import NUM_FEATURES, AG_NUM_FEATURES
 
-class AG(nn.Module):
+class XSelf(nn.Module):
     def __init__(self):
         """
         Declares the building blocks of the neural network.
         """
-        super(AG, self).__init__()
+        super(XSelf, self).__init__()
 
         self.conv1 = nn.Conv1d(NUM_FEATURES, 64, 3, padding=1)  # antibody first a trous convolutional layer
 
@@ -55,7 +55,9 @@ class AG(nn.Module):
         self.lrelu = nn.LeakyReLU(0.2)
 
         self.aconv1 = nn.Conv1d(256, 1, 1)  # attentional mechanism
-        self.aconv2 = nn.Conv1d(32, 1, 1)
+        self.aconv2 = nn.Conv1d(256, 1, 1)
+
+        self.aconv3 = nn.Conv1d(32, 1, 1)
 
 
         self.maxpool1 = nn.MaxPool1d(2)
@@ -144,7 +146,30 @@ class AG(nn.Module):
         #agx = self.maxpool1(agx)
         #ag_unpacked_masks = self.maxpool1(ag_unpacked_masks)
 
-        old = x
+        old_x = x
+
+        # print("x", x.data.shape)
+
+        w_1 = self.aconv1(x)
+        # print("w_1", w_1.data.shape)
+
+        w_2 = self.aconv2(x)
+        # print("w_2", w_2.data.shape)
+
+
+        w = self.lrelu(w_1 + torch.transpose(w_2, 1, 2))
+
+        # print("w", w.data.shape)
+
+        bias_mat = 1e9 * (ab_unpacked_masks - 1.0)
+        w = self.softmax(w + bias_mat)
+
+        self_x = torch.bmm(w, torch.transpose(x, 1, 2))
+
+        # print("x.shape", self_x.shape)
+
+        self_x = torch.transpose(self_x, 1, 2)
+
 
         oldag = agx
 
@@ -162,7 +187,7 @@ class AG(nn.Module):
                 aconvi2.cuda()
                 #agconvi.cuda()
             #agx = agconvi(oldag)
-            w_1 = aconvi1(x)
+            w_1 = aconvi1(old_x)
             w_2 = aconvi2(agx)
             w = self.lrelu(w_2 + torch.transpose(w_1, 1, 2))
             w = self.softmax(w + dist_mat)
@@ -175,7 +200,9 @@ class AG(nn.Module):
 
         x = torch.transpose(loop_x, 1, 2)
         #x = x + old
-        x = torch.cat((x, old), dim=1)
+        #print("cross", x.shape)
+        #print("self", self_x.shape)
+        x = torch.cat((x, self_x), dim=1)
         x = torch.mul(x, ab_unpacked_masks)
 
         x = self.bn4(x)

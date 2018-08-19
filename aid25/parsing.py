@@ -3,7 +3,7 @@ Custom parser for extracting data from PDB files.
 """
 from __future__ import print_function
 
-from .constants import *
+from constants import *
 
 class Entity(object):
     """

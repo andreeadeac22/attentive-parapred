@@ -16,9 +16,9 @@ from sklearn.metrics import confusion_matrix, roc_auc_score, matthews_corrcoef
 
 import time
 
-from .model import *
-from .constants import *
-from .evaluation_tools import *
+from model import *
+from constants import *
+from evaluation_tools import *
 
 def simple_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_template, weights_template_number,
                cdrs_test, lbls_test, masks_test, lengths_test):

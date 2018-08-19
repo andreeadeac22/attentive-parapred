@@ -21,6 +21,7 @@ from parapred_run import *
 from antigen_run import *
 from atrous_self_run import *
 from rnn_run import *
+from xself_run import *
 
 def kfold_cv_eval(dataset, output_file="crossval-data.p",
                   weights_template="weights-fold-{}.h5", seed=0):
@@ -84,7 +85,7 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
         ag_masks_test = Variable(index_select(ag_masks, 0, test_idx))
         dist_mat_test = Variable(index_select(dist_mat, 0, test_idx))
 
-        code = 4
+        code = 7
         if code ==1:
             probs_test1, lbls_test1, probs_test2, lbls_test2 = \
                 simple_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
@@ -115,6 +116,13 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
             probs_test1, lbls_test1, probs_test2, lbls_test2 = \
                 rnn_run(cdrs_train, lbls_train, mask_train, lengths_train, weights_template, i,
                                     cdrs_test, lbls_test, mask_test, lengths_test)
+
+        if code == 7:
+            probs_test1, lbls_test1, probs_test2, lbls_test2 = \
+                xself_run(cdrs_train, lbls_train, mask_train, lengths_train,
+                            ag_train, ag_masks_train, ag_lengths_train, dist_mat_train, weights_template, i,
+                            cdrs_test, lbls_test, mask_test, lengths_test,
+                            ag_test, ag_masks_test, ag_lengths_test, dist_mat_test)
 
         print("test", file=track_f)
 

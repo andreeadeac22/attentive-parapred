@@ -13,13 +13,13 @@ from torch.autograd import Variable
 from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence
 import torch.nn as nn
 
-from .constants import *
-from .parsing import *
-from .search import *
-from .model import *
-from .preprocessing import process_chains, process_ag_chains, complex_process_chains
-from .evaluation_tools import *
-from .ag_experiment import *
+from constants import *
+from parsing import *
+from search import *
+from model import *
+from preprocessing import process_chains, process_ag_chains, complex_process_chains
+from evaluation_tools import *
+from ag_experiment import *
 
 DATA_DIRECTORY = 'data/'
 PDBS_FORMAT = 'data/{}.pdb'

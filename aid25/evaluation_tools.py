@@ -8,7 +8,7 @@ import torch
 torch.set_printoptions(threshold=50000)
 from torch import index_select
 
-from .constants import *
+from constants import *
 
 def sort_batch(cdrs, masks, lengths, lbls):
     """
