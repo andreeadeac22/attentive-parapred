@@ -148,6 +148,8 @@ class EpitopeX(nn.Module):
 
         oldag = agx
 
+        heads_no = 1
+
 
         for i in range(heads_no):
             #agconvi = nn.Conv1d(256, 128, 1)

@@ -41,7 +41,7 @@ def load_chains(csv_file):
         print(ab_h_chain, file=f)
         print(ab_l_chain, file=f)
         print(antigen_chain, file=f)
-        cdrs, ag, ag_names, ab_atoms = get_x_pdb_structure(PDBS_FORMAT.format(pdb_name), ab_h_chain, ab_l_chain, antigen_chain)
+        ag, ag_names, ab_atoms, cdrs = get_cross_pdb_structure(PDBS_FORMAT.format(pdb_name), ab_h_chain, ab_l_chain, antigen_chain)
 
         ab_search = NeighbourSearch(ab_atoms)  # replace this
 
@@ -112,6 +112,40 @@ def seq_to_one_hot(agc):
     else:
         return None
 
+def cdr_seq_to_one_hot(res_seq_one, chain_encoding):
+    ints = one_to_number(res_seq_one)
+    if(len(ints) > 0):
+        new_ints = torch.LongTensor(ints)
+        feats = torch.Tensor(aa_features()[new_ints])
+        onehot = to_categorical(ints, num_classes=len(aa_s))
+        chain_encoding = torch.Tensor(chain_encoding)
+        chain_encoding = chain_encoding.expand(onehot.shape[0], 6)
+        concatenated = torch.cat((onehot, feats), 1)
+        #coords= torch.FloatTensor(coords)
+        return torch.cat((onehot, feats, chain_encoding), 1)
+    else:
+        return None
+
+def find_chain(cdr_name):
+    if cdr_name == "H1":
+        #print("H1")
+        return [1, 0, 0, 0, 0, 0,]
+    if cdr_name == "H2":
+        #print("H2")
+        return [0, 1, 0, 0, 0, 0]
+    if cdr_name == "H3":
+        #print("H3")
+        return [0, 0, 1, 0, 0, 0]
+    if cdr_name == "L1":
+        #print("L1")
+        return [0, 0, 0, 1, 0, 0]
+    if cdr_name == "L2":
+        #print("L2")
+        return [0, 0, 0, 0, 1, 0]
+    if cdr_name == "L3":
+        #print("L3")
+        return [0, 0, 0, 0, 0, 1]
+
 
 def process_chains_without_labels(cdrs, max_cdr_length):
     num_residues = 0
@@ -125,7 +159,7 @@ def process_chains_without_labels(cdrs, max_cdr_length):
         #cdr_coords = coords(cdrs[cdr_name])
         cdr_chain = residue_seq_to_one(cdrs[cdr_name])
         chain_encoding = find_chain(cdr_name)
-        cdr_mat = seq_to_one_hot(cdr_chain, chain_encoding)
+        cdr_mat = cdr_seq_to_one_hot(cdr_chain, chain_encoding)
         cdr_mat_pad = torch.zeros(max_cdr_length, NUM_FEATURES)
 
         if cdr_mat is not None:
