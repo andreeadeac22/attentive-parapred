@@ -63,7 +63,7 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
         cdrs_test = Variable(index_select(cdrs, 0, test_idx))
         cdr_masks_test = Variable(index_select(cdr_masks, 0, test_idx))
 
-        code = 1
+        code = 2
         if code == 1:
             probs_test1, lbls_test1, probs_test2, lbls_test2 = \
                 epitope_run(ag_train, lbls_train, masks_train, lengths_train, weights_template, i,

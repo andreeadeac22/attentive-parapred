@@ -41,7 +41,7 @@ def load_chains(csv_file):
         print(ab_h_chain, file=f)
         print(ab_l_chain, file=f)
         print(antigen_chain, file=f)
-        cdrs, ag, ag_names, ab_atoms = get_pdb_structure(PDBS_FORMAT.format(pdb_name), ab_h_chain, ab_l_chain, antigen_chain)
+        cdrs, ag, ag_names, ab_atoms = get_x_pdb_structure(PDBS_FORMAT.format(pdb_name), ab_h_chain, ab_l_chain, antigen_chain)
 
         ab_search = NeighbourSearch(ab_atoms)  # replace this
 

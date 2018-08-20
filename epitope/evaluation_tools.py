@@ -21,7 +21,7 @@ def sort_batch(cdrs, masks, lengths, lbls):
     masks = torch.index_select(masks, 0, index)
     return cdrs, masks, lengths, lbls
 
-def sort_cross_batch(cdrs, cdr_masks, cdr_lengths, ag, ag_masks, ag_lbls, ag_lengths):
+def sort_cross_batch(cdrs, cdr_masks, ag, ag_masks, ag_lbls, ag_lengths):
     order = np.argsort(ag_lengths)
     order = order.tolist()
     order.reverse()
@@ -40,7 +40,7 @@ def sort_cross_batch(cdrs, cdr_masks, cdr_lengths, ag, ag_masks, ag_lbls, ag_len
     ag_lbls = torch.index_select(ag_lbls, 0, index)
 
 
-    return cdrs, cdr_masks, cdr_lengths, ag, ag_masks, ag_lbls, ag_lengths
+    return cdrs, cdr_masks, ag, ag_masks, ag_lbls, ag_lengths
 
 def sort_probs(probs):
     print("probs", probs)

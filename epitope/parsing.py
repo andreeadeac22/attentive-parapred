@@ -283,3 +283,102 @@ def get_pdb_structure(pdb_file_name, ab_h_chain, ab_l_chain, ag_chain):
                         model.add_ag_residue(residue, chain_id)
 
     return ag, model.ag_names, model.abatoms
+
+def get_x_pdb_structure(pdb_file_name, ab_h_chain, ab_l_chain, ag_chain):
+    """
+    Extracting the data from PDB files.
+    :param pdb_file_name: PDB file name
+    :param ab_h_chain: Name of antibody heavy chain in that PDB file.
+    :param ab_l_chain: Name of the anitbody light chain in that PDB file.
+    :param ag_chain: Name of the antigen chain(s) in that PDB file.
+    :return: cdrs, antigen atoms, antigen amino acids.
+    """
+    in_file = open(pdb_file_name, 'r')
+    model = Model()
+
+    if " | " in ag_chain:
+        c1, c2 = ag_chain.split(" | ")
+        model.ag_names.append(c1)
+        #model.ag_names.append(c2)
+    else:
+        model.ag_names.append(ag_chain)
+    for name in model.ag_names:
+        print("name", name)
+
+    model.ag = {name: [] for name in model.ag_names}
+    ag = model.get_ag()
+    cdrs = model.get_cdrs()
+
+    #print("new cdrs", cdrs)
+    #print(ab_h_chain, ab_l_chain, ag_chain)
+    for line in in_file:
+        if line.startswith('ATOM') or line.startswith('HETATM'):
+
+            atom = Atom(line)
+            res_name = atom.res_name
+            res_full_name = atom.res_full_name
+            res_seq_num = atom.res_seq_num
+            res_full_seq_num = atom.res_full_seq_num
+            chain_id = atom.chain_id
+            #print("res_name", res_name, file=f)
+            #print("res_full_name", res_full_name, file=f)
+            if res_full_name[0] == 'A' or res_full_name[0] == " ":
+                if chain_id == ab_h_chain:
+                    model.add_atom_to_ab_h_chain(atom)
+
+                if chain_id == ab_l_chain:
+                    model.add_atom_to_ab_l_chain(atom)
+
+                if chain_id == ag_chain:
+                    model.add_atom_to_ag_chain(atom)
+
+                for cdr_name in cdrs:
+                    cdr_low, cdr_hi = chothia_cdr_def[cdr_name]
+                    cdr_range = range(-NUM_EXTRA_RESIDUES + cdr_low, cdr_hi +
+                                      NUM_EXTRA_RESIDUES + 1)
+                    if ((chain_id == ab_h_chain and cdr_name.startswith('H'))\
+                        or (chain_id == ab_l_chain and cdr_name.startswith('L'))) \
+                                    and res_seq_num in cdr_range:
+                        residue = model.cdr_list_has_res(cdrs[cdr_name], res_name, res_full_seq_num)
+                        if residue is None:
+                            #residue = Residue(res_name, res_seq_num, res_full_name, res_full_seq_num,
+                            #                  atom.x_coord, atom.y_coord, atom.z_coord)
+                            residue = Residue(res_name, res_seq_num, res_full_name, res_full_seq_num)
+                        residue.add_child(atom)
+                        #residue.add_atom(atom)
+                        model.add_residue(residue, cdr_name)
+                if " | " in ag_chain:
+                    c1, c2 = ag_chain.split(" | ")
+                    if chain_id == c1:
+                        model.add_agatom(atom)
+                        residue = model.ag_list_has_res(ag[c1], res_name, res_full_seq_num)
+                        if residue is None:
+                            #residue = AGResidue(res_name, res_seq_num, res_full_name, res_full_seq_num,
+                            #                  atom.x_coord, atom.y_coord, atom.z_coord)
+                            residue = Residue(res_name, res_seq_num, res_full_name, res_full_seq_num)
+                        residue.add_child(atom)
+                        #residue.add_atom(atom)
+                        model.add_ag_residue(residue, c1)
+                    """""
+                    if chain_id == c2:
+                        model.add_agatom(atom)
+                        residue = model.ag_list_has_res(ag[c2], res_name, res_full_seq_num)
+                        if residue == None:
+                            residue = Residue(res_name, res_seq_num, res_full_name, res_full_seq_num)
+                        residue.add_child(atom)
+                        model.add_ag_residue(residue, c2)
+                    """
+                else:
+                    if chain_id == ag_chain:
+                        model.add_agatom(atom)
+                        residue = model.ag_list_has_res(ag[chain_id], res_name, res_full_seq_num)
+                        if residue is None:
+                            #residue = AGResidue(res_name, res_seq_num, res_full_name, res_full_seq_num,
+                            #                  atom.x_coord, atom.y_coord, atom.z_coord)
+                            residue = Residue(res_name, res_seq_num, res_full_name, res_full_seq_num)
+                        residue.add_child(atom)
+                        #residue.add_atom(atom)
+                        model.add_ag_residue(residue, chain_id)
+
+    #print("model.ag", ag)
+    return cdrs, model.agatoms, ag, model.ag_names

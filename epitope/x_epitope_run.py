@@ -91,7 +91,8 @@ def x_epitope_run(epi_train, lbls_train, masks_train, lengths_train, cdrs_train,
             cdr_masks_train = Variable(index_select(cdr_masks_train, 0, interval))
             cdr_lengths_train = cdr_lengths_train[j:j+batch_size]
 
-            input, masks, lengths, lbls = sort_batch(input, masks, list(lengths), lbls)
+            cdrs, cdr_masks, input, masks, lbls, lengths = sort_cross_batch(cdrs=cdrs_train, cdr_masks_train=cdr_masks_train,
+                                               ag=input, ag_masks=masks, ag_lengths=list(lengths), ag_lbls=lbls)
 
             unpacked_masks = masks
 
@@ -104,7 +105,7 @@ def x_epitope_run(epi_train, lbls_train, masks_train, lengths_train, cdrs_train,
             lbls, _ = pad_packed_sequence(packed_lbls, batch_first=True)
 
 
-            output = model(input, unpacked_masks)
+            output = model(input, unpacked_masks, cdrs, cdr_masks)
 
             loss_weights = (unpacked_lbls * 1.5 + 1) * unpacked_masks
             max_val = (-output).clamp(min=0)
@@ -123,12 +124,16 @@ def x_epitope_run(epi_train, lbls_train, masks_train, lengths_train, cdrs_train,
 
         model.eval()
 
-        epi_test2, masks_test2, lengths_test2, lbls_test2 = sort_batch(epi_test, masks_test, list(lengths_test),
-                                                                    lbls_test)
+        cdrs_test2, cdr_masks_test2, epi_test2, masks_test2, lbls_test2, lengths_test2 = \
+            sort_cross_batch(cdrs=cdrs_test, cdr_masks_train=cdr_masks_test, ag=epi_test, ag_masks=masks_test,
+                                        ag_lengths=list(lengths_test), ag_lbls=lbls_test)
+
+        #epi_test2, masks_test2, lengths_test2, lbls_test2 = sort_batch(epi_test, masks_test, list(lengths_test),
+        #                                                            lbls_test)
 
         unpacked_masks_test2 = masks_test2
 
-        probs_test2 = model(epi_test2, unpacked_masks_test2)
+        probs_test2 = model(epi_test2, unpacked_masks_test2, cdrs_test2, cdr_masks_test2)
 
         # K.mean(K.equal(lbls_test, K.round(y_pred)), axis=-1)
 
@@ -148,13 +153,17 @@ def x_epitope_run(epi_train, lbls_train, masks_train, lengths_train, cdrs_train,
     print("test", file=track_f)
     model.eval()
 
-    epi_test, masks_test, lengths_test, lbls_test = sort_batch(epi_test, masks_test, list(lengths_test), lbls_test)
+    cdrs_test, cdr_masks_test, epi_test, masks_test, lbls_test, lengths_test = \
+        sort_cross_batch(cdrs=cdrs_test, cdr_masks_train=cdr_masks_test, ag=epi_test, ag_masks=masks_test,
+                         ag_lengths=list(lengths_test), ag_lbls=lbls_test)
+
+    #epi_test, masks_test, lengths_test, lbls_test = sort_batch(epi_test, masks_test, list(lengths_test), lbls_test)
 
     unpacked_masks_test = masks_test
     packed_input = pack_padded_sequence(masks_test, list(lengths_test), batch_first=True)
     masks_test, _ = pad_packed_sequence(packed_input, batch_first=True)
 
-    probs_test = model(epi_test, unpacked_masks_test)
+    probs_test = model(epi_test, unpacked_masks_test, cdrs_test, cdr_masks_test)
 
     # K.mean(K.equal(lbls_test, K.round(y_pred)), axis=-1)
 
