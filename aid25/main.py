@@ -138,7 +138,7 @@ def process_cv_results():
 
     fig1 = plot_pr_curve(labels1, probs1, colours=("#0072CF", "#68ACE5"),label="Parapred")
 
-    fig1 = plot_abip_pr(fig1)
+    #fig1 = plot_abip_pr(fig1)
     #fig1 = plot_pr_curve(selflabels1, selfprobs1, colours=("#228B18", "#006400"), label="Fast-Parapred", plot_fig=fig1)
     #fig1 = plot_pr_curve(aglabels, agprobs, colours=("#FF8C00", "#FFA500"), label="AG-Fast-Parapred", plot_fig=fig1)
     fig1.savefig("pr1.pdf")

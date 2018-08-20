@@ -238,7 +238,7 @@ def compute_classifier_metrics(labels, probs, labels1, probs1, threshold=0.5):
         mcorrs1.append(matthews_corrcoef(l1, l_pred1))
 
     print("Metrics with the original version")
-    helper_compute_metrics(matrices=matrices,  aucs=aucs2, mcorrs =mcorrs )
+    helper_compute_metrics(matrices=matrices,  aucs=aucs2, mcorrs =mcorrs)
     print("Metrics with probabilities concatenated")
     helper_compute_metrics(matrices=matrices1, aucs=aucs1, mcorrs=mcorrs1)
 

@@ -41,7 +41,7 @@ class XSelf(nn.Module):
         self.bn1 = nn.BatchNorm1d(64)  # batch normalisation after the first convolutional layer for antibody
         self.bn2 = nn.BatchNorm1d(128)
         self.bn3 = nn.BatchNorm1d(256)
-        self.bn4 = nn.BatchNorm1d(512)
+        self.bn4 = nn.BatchNorm1d(768)
 
         self.agbn1 = nn.BatchNorm1d(64)  # batch normalisation after the first convolutional layer for antigen
         self.agbn2 = nn.BatchNorm1d(128)
@@ -50,7 +50,7 @@ class XSelf(nn.Module):
         self.elu = nn.ReLU()
         self.dropout = nn.Dropout(0.15)
         self.dropout2 = nn.Dropout(0.5)
-        self.fc = nn.Linear(512, 1, 1)  # dense prediction layer
+        self.fc = nn.Linear(768, 1, 1)  # dense prediction layer
         self.softmax = nn.Softmax(dim=-1)
         self.lrelu = nn.LeakyReLU(0.2)
 
@@ -202,7 +202,7 @@ class XSelf(nn.Module):
         #x = x + old
         #print("cross", x.shape)
         #print("self", self_x.shape)
-        x = torch.cat((x, self_x), dim=1)
+        x = torch.cat((x, self_x, old_x), dim=1)
         x = torch.mul(x, ab_unpacked_masks)
 
         x = self.bn4(x)

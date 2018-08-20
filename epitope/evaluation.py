@@ -13,14 +13,19 @@ from sklearn.metrics import confusion_matrix, roc_auc_score, matthews_corrcoef
 import pickle
 
 from epitope_run import *
+from x_epitope_run import *
 
 def kfold_cv_eval(dataset, output_file="crossval-data.p",
                   weights_template="weights-fold-{}.h5", seed=0):
-    ag, lbls, masks, lengths = dataset["ag"], dataset["ag_lbls"], dataset["ag_masks"], dataset["ag_lengths"]
+    ag, lbls, masks, lengths, cdrs, cdr_masks, cdr_lengths = \
+        dataset["ag"], dataset["ag_lbls"], dataset["ag_masks"], dataset["ag_lengths"], \
+        dataset["cdrs"], dataset["cdr_masks"], dataset["cdr_lengths"]
 
     print("ag", ag.shape)
     print("lbls", lbls.shape)
     print("masks", masks.shape)
+    print("cdrs", cdrs.shape)
+    print("cdr masks", cdr_masks.shape)
 
     kf = KFold(n_splits=NUM_SPLIT, random_state=seed, shuffle=True)
 
@@ -37,6 +42,9 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
         lengths_train = [lengths[i] for i in train_idx]
         lengths_test = [lengths[i] for i in test_idx]
 
+        cdr_lengths_train = [cdr_lengths[i] for i in train_idx]
+        cdr_lengths_test = [cdr_lengths[i] for i in test_idx]
+
         print("len(train_idx",len(train_idx))
 
         train_idx = torch.from_numpy(train_idx)
@@ -45,18 +53,30 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
         ag_train = index_select(ag, 0, train_idx)
         lbls_train = index_select(lbls, 0, train_idx)
         masks_train = index_select(masks, 0, train_idx)
+        cdrs_train = index_select(cdrs, 0, train_idx)
+        cdr_masks_train = index_select(cdr_masks, 0, train_idx)
+
 
         ag_test = Variable(index_select(ag, 0, test_idx))
         lbls_test = Variable(index_select(lbls, 0, test_idx))
         masks_test = Variable(index_select(masks, 0, test_idx))
+        cdrs_test = Variable(index_select(cdrs, 0, test_idx))
+        cdr_masks_test = Variable(index_select(cdr_masks, 0, test_idx))
 
         code = 1
-        if code ==1:
+        if code == 1:
             probs_test1, lbls_test1, probs_test2, lbls_test2 = \
                 epitope_run(ag_train, lbls_train, masks_train, lengths_train, weights_template, i,
                                     ag_test, lbls_test, masks_test, lengths_test)
 
-        print("test", file=track_f)
+        if code == 2:
+            probs_test1, lbls_test1, probs_test2, lbls_test2 = \
+                x_epitope_run(ag_train, lbls_train, masks_train, lengths_train,
+                              cdrs_train, cdr_masks_train, cdr_lengths_train,
+                              weights_template, i,
+                              ag_test, lbls_test, masks_test, lengths_test,
+                              cdrs_test, cdr_masks_test, cdr_lengths_test)
+
 
         lbls_test2 = np.squeeze(lbls_test2)
         all_lbls2 = np.concatenate((all_lbls2, lbls_test2))

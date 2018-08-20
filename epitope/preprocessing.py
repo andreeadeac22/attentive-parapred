@@ -41,13 +41,11 @@ def load_chains(csv_file):
         print(ab_h_chain, file=f)
         print(ab_l_chain, file=f)
         print(antigen_chain, file=f)
-        ag, ag_names, ab_atoms = get_pdb_structure(PDBS_FORMAT.format(pdb_name), ab_h_chain, ab_l_chain, antigen_chain)
+        cdrs, ag, ag_names, ab_atoms = get_pdb_structure(PDBS_FORMAT.format(pdb_name), ab_h_chain, ab_l_chain, antigen_chain)
 
         ab_search = NeighbourSearch(ab_atoms)  # replace this
 
-
-
-        yield ab_search, ag, pdb_name
+        yield ab_search, ag, pdb_name, cdrs
         i = i + 1
 
 def residue_in_contact_with(res, c_search, dist=CONTACT_DISTANCE):
@@ -115,6 +113,41 @@ def seq_to_one_hot(agc):
         return None
 
 
+def process_chains_without_labels(cdrs, max_cdr_length):
+    num_residues = 0
+    num_in_contact = 0
+
+    cdr_mats = []
+    cdr_masks = []
+    lengths = []
+    for cdr_name in ["H1", "H2", "H3", "L1", "L2", "L3"]:
+        # Converting residues to amino acid sequences
+        #cdr_coords = coords(cdrs[cdr_name])
+        cdr_chain = residue_seq_to_one(cdrs[cdr_name])
+        chain_encoding = find_chain(cdr_name)
+        cdr_mat = seq_to_one_hot(cdr_chain, chain_encoding)
+        cdr_mat_pad = torch.zeros(max_cdr_length, NUM_FEATURES)
+
+        if cdr_mat is not None:
+            #print("cdr_mat", cdr_mat)
+            cdr_mat_pad[:cdr_mat.shape[0], :] = cdr_mat
+            cdr_mats.append(cdr_mat_pad)
+            lengths.append(cdr_mat.shape[0])
+
+            cdr_mask = torch.zeros(max_cdr_length, 1)
+            if len(cdr_chain) > 0:
+                cdr_mask[:len(cdr_chain), 0] = 1
+            cdr_masks.append(cdr_mask)
+        else:
+            print("is None")
+            print("cdrs[cdr_name]", cdrs[cdr_name])
+
+    cdrs = torch.stack(cdr_mats)
+    masks = torch.stack(cdr_masks)
+
+    return cdrs, masks, lengths
+
+
 def process_chains(ab_search, ag, max_ag_length):
     num_residues = 0
     num_in_contact = 0
@@ -164,18 +197,18 @@ def process_chains(ab_search, ag, max_ag_length):
             ag_masks.append(ag_mask)
         else:
             print("is None")
-            print("contact[cdr_name]", contact[ag_name])
-            print("cdrs[cdr_name]", ag[ag_name])
+            print("contact[ag_name]", contact[ag_name])
+            print("ag[ag_name]", ag[ag_name])
             #cdr_mats.append(cdr_mat_pad)
             #lengths.append(0)
 
         if ag_mat is not None and ag_mat.shape[0] == 1:
             print("Length is 1")
-            print("cdr_mat", ag_mat)
-            print("cdrs[cdr_name]", ag[ag_name])
-            print("residue_seq_to_one(cdrs[cdr_name])", residue_seq_to_one(ag[ag_name]))
+            print("ag_mat", ag_mat)
+            print("ag[ag_name]", ag[ag_name])
+            print("residue_seq_to_one(ag[ag_name])", residue_seq_to_one(ag[ag_name]))
             #print("seq_to_one_hot(cdr_chain, chain_encoding)", seq_to_one_hot(cdr_chain, chain_encoding, coords))
-            print("len(cdr_chain", len(ag_chain))
+            print("len(ag_chain", len(ag_chain))
             print(ag_mask)
 
     ag = torch.stack(ag_mats)
@@ -195,12 +228,20 @@ def process_dataset(csv_file):
     all_ag_lengths = []
     all_ag_masks = []
 
-    for ab_search, ag, pdb in load_chains(csv_file):
+    all_cdrs = []
+    all_cdrs_masks = []
+    all_cdrs_lengths = []
+
+    for ab_search, ag, pdb, cdrs in load_chains(csv_file):
         print("Processing PDB ", pdb)
 
         #cdrs, lbls, masks, (numresidues, numincontact), lengths = process_chains(ag_search, cdrs, max_cdr_length = MAX_CDR_LENGTH)
         ag, ag_lbls, ag_masks, (numresidues, numincontact), ag_lengths = \
             process_chains(ab_search, ag, max_ag_length=MAX_AG_LENGTH)
+
+        cdrs, cdr_masks, cdr_lengths = process_chains_without_labels(cdrs, max_cdr_length=MAX_CDR_LENGTH)
+
+
 
         print("ag_length", ag_lengths)
 
@@ -215,6 +256,11 @@ def process_dataset(csv_file):
         all_ag_masks.append(ag_masks)
         all_ag_lengths.append(ag_lengths)
 
+        all_cdrs.append(cdrs)
+        all_cdrs_masks.append(cdr_masks)
+        all_cdrs_lengths.append(cdr_lengths)
+
+
     print("num_residues", num_residues, file=f)
     print("num_in_contact", num_in_contact, file=f)
 
@@ -222,12 +268,17 @@ def process_dataset(csv_file):
     ag_lbls = torch.cat(all_ag_lbls)
     ag_masks = torch.cat(all_ag_masks)
 
+    cdrs = torch.cat(all_cdrs)
+    cdr_masks = torch.cat(all_cdrs_masks)
+
     flat_lengths = [item for sublist in all_ag_lengths for item in sublist]
+    flat_cdr_lengths = [item for sublist in all_cdrs_lengths for item in sublist]
 
     print("ag", ag, file=monitoring_file)
     print("ag_lbls", ag_lbls, file=monitoring_file)
     print("ag_masks", ag_masks, file=monitoring_file)
     print("ag_length", ag_lengths, file=monitoring_file)
+    print("cdr", cdrs, file=monitoring_file)
     return {
         "ag": ag,
         "ag_lbls": ag_lbls,
@@ -235,6 +286,9 @@ def process_dataset(csv_file):
         "max_ab_len": MAX_AG_LENGTH,
         "pos_class_weight" : num_residues/num_in_contact,
         "ag_lengths": flat_lengths,
+        "cdrs": cdrs,
+        "cdr_masks":cdr_masks,
+        "cdr_lengths":flat_cdr_lengths,
     }
 
 def open_dataset(summary_file=data_frame, dataset_cache="processed-dataset.p"):
