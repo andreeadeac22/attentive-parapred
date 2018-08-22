@@ -191,8 +191,8 @@ class XSelf(nn.Module):
             w_1 = aconvi1(old_x)
             w_2 = aconvi2(agx)
             # w = self.lrelu(w_2 + torch.transpose(w_1, 1, 2))
-            print("w_1.shape", w_1.shape)
-            print("w_2.shape", w_2.shape)
+            #print("w_1.shape", w_1.shape)
+            #print("w_2.shape", w_2.shape)
             w= self.lrelu(torch.bmm(torch.transpose(w_1, 1, 2), w_2))
 
             w = self.softmax(w + dist_mat)
@@ -206,9 +206,9 @@ class XSelf(nn.Module):
         x = torch.transpose(loop_x, 1, 2)
         #x = x + old
 
-        print("cross", x.shape)
-        print("self", self_x.shape)
-        print("old", old_x.shape)
+        #print("cross", x.shape)
+        #print("self", self_x.shape)
+        #print("old", old_x.shape)
 
         x = torch.cat((x, self_x, old_x), dim=1)
         x = torch.mul(x, ab_unpacked_masks)

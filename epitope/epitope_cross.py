@@ -162,7 +162,13 @@ class EpitopeX(nn.Module):
             #agx = agconvi(oldag)
             w_1 = aconvi1(x)
             w_2 = aconvi2(agx)
-            w = self.lrelu(w_1 + torch.transpose(w_2, 1, 2))
+            #w = self.lrelu(w_1 + torch.transpose(w_2, 1, 2))
+
+            print("w_1.shape", w_1.shape)
+            print("w_2.shape", w_2.shape)
+
+            w= self.lrelu(torch.bmm(torch.transpose(w_1, 1, 2), w_2))
+
             w = self.softmax(w)
             w = self.dropout(w)
             temp_loop_x = torch.bmm(w, torch.transpose(x, 1, 2))

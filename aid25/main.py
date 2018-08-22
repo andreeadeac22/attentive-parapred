@@ -141,7 +141,7 @@ def process_cv_results():
     #fig1 = plot_abip_pr(fig1)
     #fig1 = plot_pr_curve(selflabels1, selfprobs1, colours=("#228B18", "#006400"), label="Fast-Parapred", plot_fig=fig1)
     #fig1 = plot_pr_curve(aglabels, agprobs, colours=("#FF8C00", "#FFA500"), label="AG-Fast-Parapred", plot_fig=fig1)
-    fig1.savefig("pr1.pdf")
+    #fig1.savefig("pr1.pdf")
 
     print("Printing PDB for visualisation")
     if visualisation_flag:
@@ -151,5 +151,5 @@ def process_cv_results():
     print("Computing classifier metrics")
     initial_compute_classifier_metrics(labels, probs, threshold=0.4913739)
 
-run_cv()
+#run_cv()
 process_cv_results()
