@@ -4,8 +4,6 @@ Training and testing AG-Fast-Parapred
 from __future__ import print_function
 
 import numpy as np
-np.set_printoptions(threshold=np.nan)
-from torch.autograd import Variable
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -121,15 +119,15 @@ def xself_run(cdrs_train, lbls_train, masks_train, lengths_train,
             if use_cuda:
                 interval = interval.cuda()
 
-            input = Variable(index_select(total_input, 0, interval), requires_grad=True)
-            lbls = Variable(index_select(total_lbls, 0, interval))
-            masks = Variable(index_select(total_masks, 0, interval))
+            input = index_select(total_input, 0, interval)
+            lbls = index_select(total_lbls, 0, interval)
+            masks = index_select(total_masks, 0, interval)
             lengths = total_lengths[j:j + batch_size]
 
-            ag_input = Variable(index_select(total_ag_input, 0, interval), requires_grad=True)
-            ag_masks = Variable(index_select(total_ag_masks, 0, interval))
+            ag_input = index_select(total_ag_input, 0, interval)
+            ag_masks = index_select(total_ag_masks, 0, interval)
 
-            dist = Variable(index_select(total_dist_train, 0, interval))
+            dist = index_select(total_dist_train, 0, interval)
 
             input, masks, lengths, lbls, ag, ag_masks, dist = \
                 sort_ag_batch(input, masks, list(lengths), lbls, ag_input, ag_masks, dist)

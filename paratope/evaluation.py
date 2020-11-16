@@ -5,8 +5,6 @@ from __future__ import print_function
 from sklearn.model_selection import KFold
 
 import numpy as np
-np.set_printoptions(threshold=np.nan)
-from torch.autograd import Variable
 import torch
 torch.set_printoptions(threshold=50000)
 from torch import squeeze
@@ -78,12 +76,12 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
         ag_masks_train = index_select(ag_masks, 0, train_idx)
         dist_mat_train = index_select(dist_mat, 0, train_idx)
 
-        cdrs_test = Variable(index_select(cdrs, 0, test_idx))
-        lbls_test = Variable(index_select(lbls, 0, test_idx))
-        mask_test = Variable(index_select(masks, 0, test_idx))
-        ag_test = Variable(index_select(ag, 0, test_idx))
-        ag_masks_test = Variable(index_select(ag_masks, 0, test_idx))
-        dist_mat_test = Variable(index_select(dist_mat, 0, test_idx))
+        cdrs_test = index_select(cdrs, 0, test_idx)
+        lbls_test = index_select(lbls, 0, test_idx)
+        mask_test = index_select(masks, 0, test_idx)
+        ag_test = index_select(ag, 0, test_idx)
+        ag_masks_test = index_select(ag_masks, 0, test_idx)
+        dist_mat_test = index_select(dist_mat, 0, test_idx)
 
         code = 7
         if code ==1:
@@ -132,7 +130,6 @@ def kfold_cv_eval(dataset, output_file="crossval-data.p",
 
         probs_test_pad = torch.zeros(probs_test1.data.shape[0], MAX_CDR_LENGTH, probs_test1.data.shape[2])
         probs_test_pad[:probs_test1.data.shape[0], :probs_test1.data.shape[1], :] = probs_test1.data
-        probs_test_pad = Variable(probs_test_pad)
 
         probs_test2 = np.squeeze(probs_test2)
         #print(probs_test)

@@ -1,8 +1,6 @@
 from __future__ import print_function
 
 import numpy as np
-np.set_printoptions(threshold=np.nan)
-from torch.autograd import Variable
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -65,10 +63,10 @@ def attention_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_te
             if use_cuda:
                 interval = interval.cuda()
 
-            input = Variable(index_select(total_input, 0, interval), requires_grad=True)
-            masks = Variable(index_select(total_masks, 0, interval))
+            input = index_select(total_input, 0, interval)
+            masks = index_select(total_masks, 0, interval)
             lengths = total_lengths[j:j + batch_size]
-            lbls = Variable(index_select(total_lbls, 0, interval))
+            lbls = index_select(total_lbls, 0, interval)
 
             input, masks, lengths, lbls = sort_batch(input, masks, list(lengths), lbls)
 
@@ -92,7 +90,6 @@ def attention_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_te
                     if( unpacked_masks.data[um_i][um_j].cpu().numpy() == 1):
                         bias_mat[um_i, um_j] = 0
             #bias_mat[:unpacked_masks.data.shape[0], :unpacked_masks.data.shape[1], :] = 0
-            bias_mat = Variable(bias_mat)
             if use_cuda:
                 bias_mat = bias_mat.cuda()
 
@@ -135,7 +132,6 @@ def attention_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_te
                 if (unpacked_masks_test1.data[um_i][um_j].cpu().numpy() == 1):
                     bias_mat1[um_i, um_j] = 0
         # bias_mat[:unpacked_masks.data.shape[0], :unpacked_masks.data.shape[1], :] = 0
-        bias_mat1 = Variable(bias_mat1)
         if use_cuda:
             bias_mat1 = bias_mat1.cuda()
 
@@ -176,7 +172,6 @@ def attention_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_te
             if (unpacked_masks_test.data[um_i][um_j].cpu().numpy() == 1):
                 bias_mat[um_i, um_j] = 0
     # bias_mat[:unpacked_masks.data.shape[0], :unpacked_masks.data.shape[1], :] = 0
-    bias_mat = Variable(bias_mat)
     if use_cuda:
         bias_mat = bias_mat.cuda()
 

@@ -2,8 +2,6 @@
 Helper functions for the evaluation suite.
 """
 import numpy as np
-np.set_printoptions(threshold=np.nan)
-from torch.autograd import Variable
 import torch
 torch.set_printoptions(threshold=50000)
 from torch import index_select
@@ -23,7 +21,7 @@ def sort_batch(cdrs, masks, lengths, lbls):
     order = order.tolist()
     order.reverse()
     lengths.sort(reverse=True)
-    index = Variable(torch.LongTensor(order))
+    index = torch.LongTensor(order)
     if use_cuda:
         index = index.cuda()
 
@@ -39,7 +37,7 @@ def sort_ag_batch(cdrs, masks, lengths, lbls, ag, ag_masks, dist):
 
     lengths.sort(reverse=True)
 
-    index = Variable(torch.LongTensor(order))
+    index = torch.LongTensor(order)
     if use_cuda:
         index = index.cuda()
 
@@ -64,7 +62,7 @@ def vis_sort_batch(cdrs, masks, lengths, lbls):
     order = order.tolist()
     order.reverse()
     lengths.sort(reverse=True)
-    index = Variable(torch.LongTensor(order))
+    index = torch.LongTensor(order)
     #index = torch.LongTensor(order)
 
     if use_cuda:
@@ -83,7 +81,7 @@ def sort_batch_without_labels(cdrs, masks, lengths):
     order = order.tolist()
     order.reverse()
     lengths.sort(reverse=True)
-    index = Variable(torch.LongTensor(order))
+    index = torch.LongTensor(order)
     #index = torch.LongTensor(order)
 
     if use_cuda:
@@ -100,7 +98,7 @@ def ag_vis_sort_batch(cdrs, masks, lengths, lbls, ag, ag_masks):
     order = order.tolist()
     order.reverse()
     lengths.sort(reverse=True)
-    index = Variable(torch.LongTensor(order))
+    index = torch.LongTensor(order)
     #index = torch.LongTensor(order)
 
     if use_cuda:

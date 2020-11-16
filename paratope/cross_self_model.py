@@ -5,10 +5,8 @@ from __future__ import print_function
 from sklearn.model_selection import KFold
 
 import numpy as np
-np.set_printoptions(threshold=np.nan)
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 from torch import optim
 import torch.nn.functional as F
 from torch import index_select

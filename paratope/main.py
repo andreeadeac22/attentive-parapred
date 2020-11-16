@@ -1,7 +1,6 @@
 """
 Running cross-validation, processing results
 """
-from torch.autograd import Variable
 import torch
 torch.set_printoptions(threshold=50000)
 import torch.nn as nn
@@ -27,9 +26,9 @@ def full_run(dataset="data/sabdab_27_jun_95_90.csv", out_weights="weights.h5"):
     print("main, full_run")
     cache_file = dataset.split("/")[-1] + ".p"
     dataset = open_dataset(dataset_cache=cache_file)
-    cdrs, total_lbls, masks, lengths = dataset["cdrs"], dataset["lbls"], dataset["masks"], dataset["lengths"]
+    total_input, total_lbls, masks, lengths = dataset["cdrs"], dataset["lbls"], dataset["masks"], dataset["lengths"]
 
-    print("cdrs shape", cdrs.shape)
+    print("total_input shape", total_input.shape)
     print("lbls shape", total_lbls.shape)
     print("masks shape", masks.shape)
     print("all_lengths", lengths)
@@ -44,8 +43,6 @@ def full_run(dataset="data/sabdab_27_jun_95_90.csv", out_weights="weights.h5"):
                             lr=0.001)  # l2 regularizer is weight_decay, included in optimizer
     criterion = nn.BCELoss()
 
-    total_input = Variable(cdrs)
-
     if use_cuda:
         model.cuda()
         total_input = total_input.cuda()
@@ -57,21 +54,19 @@ def full_run(dataset="data/sabdab_27_jun_95_90.csv", out_weights="weights.h5"):
             optimizer = optimizer1
         else:
             optimizer = optimizer2
-        for j in range(0, cdrs.shape[0], 32):
+        for j in range(0, total_input.shape[0], 32):
             optimizer.zero_grad()  # zero the gradient buffers
-            interval = [x for x in range(j, min(cdrs.shape[0],j+32))]
+            interval = [x for x in range(j, min(total_input.shape[0],j+32))]
             interval = torch.LongTensor(interval)
             if use_cuda:
                 interval = interval.cuda()
             input = index_select(total_input.data, 0, interval)
-            input = Variable(input, requires_grad=True)
             print("j", j)
             print("input shape", input.data.shape)
             #print("lengths", lengths[j:j+32])
             output = model(input, lengths[j:j+32])
             lbls = index_select(total_lbls, 0, interval)
             print("lbls before pack", lbls.shape)
-            lbls = Variable(lbls)
 
             packed_input = pack_padded_sequence(lbls, lengths[j:j+32], batch_first=True)
 
@@ -151,5 +146,5 @@ def process_cv_results():
     print("Computing classifier metrics")
     initial_compute_classifier_metrics(labels, probs, threshold=0.4913739)
 
-#run_cv()
-process_cv_results()
+run_cv()
+#process_cv_results()

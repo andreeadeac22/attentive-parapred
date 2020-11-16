@@ -1,8 +1,6 @@
 from __future__ import print_function
 
 import numpy as np
-np.set_printoptions(threshold=np.nan)
-from torch.autograd import Variable
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -64,10 +62,10 @@ def atrous_run(cdrs_train, lbls_train, masks_train, lengths_train, weights_templ
             if use_cuda:
                 interval = interval.cuda()
 
-            input = Variable(index_select(total_input, 0, interval), requires_grad=True)
-            masks = Variable(index_select(total_masks, 0, interval))
+            input = index_select(total_input, 0, interval)
+            masks = index_select(total_masks, 0, interval)
             lengths = total_lengths[j:j + batch_size]
-            lbls = Variable(index_select(total_lbls, 0, interval))
+            lbls = index_select(total_lbls, 0, interval)
 
             input, masks, lengths, lbls = sort_batch(input, masks, list(lengths), lbls)
 
